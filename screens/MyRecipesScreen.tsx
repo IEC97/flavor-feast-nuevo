@@ -6,26 +6,58 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
-  Alert,
+  //Alert,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons'; // Agrega este import
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
-import { useFilterContext } from '../context/FilterContext';
+//import { useFilterContext } from '../context/FilterContext';
 
 const MyRecipesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Home'>>();
   const { myRecipes, deleteRecipe } = useRecipeContext();
 
+  const [showPrompt, setShowPrompt] = React.useState(false);
+
   const goToEdit = (recipe: any) => {
     navigation.navigate('RecipeForm', { recipe });
   };
-
   const goToCreate = () => {
+    setShowPrompt(true);
+  };
+
+  const handleYes = () => {
+    setShowPrompt(false);
     navigation.navigate('RecipeForm');
   };
+
+  const handleNo = () => {
+    setShowPrompt(false);
+  };
+
+  /* const goToCreate = () => {
+    navigation.navigate('RecipeForm');
+  }; */
+  /* const goToCreate = () => {
+  Alert.alert(
+    '¿Desea crear una receta?',
+    '',
+    [
+      {
+        text: 'No',
+        style: 'cancel',
+      },
+      {
+        text: 'Sí',
+        onPress: () => navigation.navigate('RecipeForm'),
+      },
+    ],
+    { cancelable: true }
+  );
+}; */
 
   return (
     <View style={styles.container}>
@@ -68,6 +100,24 @@ const MyRecipesScreen = () => {
       <TouchableOpacity style={styles.button} onPress={goToCreate}>
         <Text style={styles.buttonText}>Nueva receta</Text>
       </TouchableOpacity>
+
+      {showPrompt && (
+        <View style={styles.promptOverlay}>
+          <View style={styles.promptBox}>
+            <MaterialIcons name="add-box" size={32} color="#23294c" style={{ alignSelf: 'center' }} />
+            <Text style={styles.promptText}>¿Deseas crear una Receta?</Text>
+            <View style={styles.promptButtons}>
+              <TouchableOpacity style={styles.promptYes} onPress={handleYes}>
+                <Text style={styles.promptYesText}>Sí</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.promptNo} onPress={handleNo}>
+                <Text style={styles.promptNoText}>No</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
     </View>
   );
 };
@@ -102,6 +152,59 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff', fontWeight: 'bold', fontSize: 16,
+  },
+
+  promptOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  promptBox: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: 270,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  promptText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginVertical: 16,
+    textAlign: 'center',
+  },
+  promptButtons: {
+    flexDirection: 'row',
+    gap: 24,
+    marginTop: 8,
+  },
+  promptYes: {
+    backgroundColor: '#23294c',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 28,
+  },
+  promptYesText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  promptNo: {
+    backgroundColor: 'transparent',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 28,
+  },
+  promptNoText: {
+    color: '#23294c',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

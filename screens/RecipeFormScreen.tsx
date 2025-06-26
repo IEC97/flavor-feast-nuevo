@@ -13,6 +13,9 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe } from '../types';
 
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
+
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
 const RecipeFormScreen = () => {
@@ -21,6 +24,10 @@ const RecipeFormScreen = () => {
   const route = useRoute<any>();
 
   const editingRecipe: Recipe | undefined = route.params?.recipe;
+
+  const [imageUri, setImageUri] = useState<string | null>(editingRecipe?.image?.uri || null);
+
+  //const editingRecipe: Recipe | undefined = route.params?.recipe;
   const [isEditing] = useState(!!editingRecipe);
 
   const [title, setTitle] = useState('');
@@ -41,6 +48,22 @@ const RecipeFormScreen = () => {
     }
   }, [editingRecipe]);
 
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permiso requerido', 'Se necesita permiso para acceder a la galería.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
   const handleSubmit = () => {
     if (!title || !author || !time || !description) {
       Alert.alert('Error', 'Todos los campos son obligatorios.');
@@ -59,7 +82,8 @@ const RecipeFormScreen = () => {
       time,
       description,
       rating: editingRecipe?.rating || 0,
-      image: editingRecipe?.image || require('../assets/placeholder.jpg'),
+      //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
+      image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
       ingredients,
       steps,
       createdByUser: true,
@@ -99,7 +123,8 @@ const RecipeFormScreen = () => {
         time,
         description,
         rating: editingRecipe?.rating || 0,
-        image: editingRecipe?.image || require('../assets/placeholder.jpg'),
+        //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
+        image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
         ingredients,
         steps: steps.length > 0 ? steps : (editingRecipe?.steps || []),
         createdByUser: true,
@@ -119,6 +144,17 @@ const RecipeFormScreen = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      
+      <Text style={styles.label}>Imagen de la receta</Text>
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, marginBottom: 10, borderRadius: 8 }} />
+      ) : (
+        <Image source={require('../assets/placeholder.jpg')} style={{ width: '100%', height: 200, marginBottom: 10, borderRadius: 8 }} />
+      )}
+      <TouchableOpacity style={styles.secondaryButton} onPress={pickImage}>
+        <Text style={styles.secondaryText}>Seleccionar imagen</Text>
+      </TouchableOpacity>
+
       <Text style={styles.label}>Título *</Text>
       <TextInput style={styles.input} value={title} onChangeText={setTitle} />
 
@@ -164,6 +200,12 @@ const RecipeFormScreen = () => {
           {editingRecipe ? 'Guardar cambios' : 'Siguiente: Agregar Pasos'}
         </Text>
       </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelText}>Cancelar</Text>
+      </TouchableOpacity>
+
+      
 
       {editingRecipe && (
         <>
@@ -171,9 +213,9 @@ const RecipeFormScreen = () => {
             <Text style={styles.secondaryText}>Editar pasos</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+          {/* <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelText}>Cancelar</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </>
       )}
     </ScrollView>
