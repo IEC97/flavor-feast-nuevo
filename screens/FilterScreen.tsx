@@ -3,9 +3,16 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFilterContext } from '../context/FilterContext';
+//import { API_BASE_URL } from '../constants';
 
-const ingredients = ['Huevo', 'Zanahoria', 'Tomate', 'Queso', 'Pollo', 'Lechuga', 'Arroz', 'Lentejas', 'Pan', 'Frutilla', 'Carne', 'Crema', 'Harina', 'Leche', 'Morron', 'Batata'];
-const categories = ['Pizza', 'Pasta', 'Arroz', 'Postres', 'Verduras', 'Sopas', 'Carnes', 'Pescado', 'Ensaladas', 'Legumbres', 'Aperitivos'];
+
+//const ingredients = ['Huevo', 'Zanahoria', 'Tomate', 'Queso', 'Pollo', 'Lechuga', 'Arroz', 'Lentejas', 'Pan', 'Frutilla', 'Carne', 'Crema', 'Harina', 'Leche', 'Morron', 'Batata'];
+const ingredients = ['Pollo', 'Azucar', 'Manzanas', 'Levadura', 'Huevos', 
+  'Leche', 'Mantequilla', 'Sal', 'Pimienta', 'Aceite de oliva', 'Arroz', 'Tomates', 
+  'Cebolla', 'Ajo', 'Queso', 'Chcocolate negro', 'Vainilla', 'Limon', 'Zanahoria', 'Papa'];
+//const categories = ['Pizza', 'Pasta', 'Arroz', 'Postres', 'Verduras', 'Sopas', 'Carnes', 'Pescado', 'Ensaladas', 'Legumbres', 'Aperitivos'];
+const categories = ['Panaderia', 'Cocina Salada', 'Reposteria', 'Bebidas', 'Ensaladas', 'Postres', 'Sopas', 'Platos Principales', 'Aperitivos', 'Salsas'];
+
 
 const FilterScreen = () => {
   const navigation = useNavigation();
@@ -21,7 +28,18 @@ const FilterScreen = () => {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setFilters({
+      user: userSearch,
+      include,
+      exclude,
+      categories: selectedCategories,
+    });
+
+    navigation.goBack();
+  };
+
+  /* const handleSave = () => {
     setFilters({
       user: userSearch,
       include,
@@ -29,7 +47,7 @@ const FilterScreen = () => {
       categories: selectedCategories,
     });
     navigation.goBack();
-  };
+  }; */
 
   return (
     <ScrollView style={styles.container}>

@@ -20,15 +20,56 @@ import { API_BASE_URL } from '../constants';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'HomeTabs'>;
 
+
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { recipes, toggleFavorite, isFavorite } = useRecipeContext();
   const { filters } = useFilterContext();
   const { sortOrder } = useSortContext();
   const { user } = useUserContext(); // 👈 Obtener usuario del contexto
-
+  
   const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Recipe[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [latestRecipes, setLatestRecipes] = useState<Recipe[]>([]);
+  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[] | null>(null);
+
+  const categoryIdMap: Record<string, string> = {
+    Panaderia: '1',
+    CocinaSalada: '2',
+    Reposteria: '3',
+    Bebidas: '4',
+    Ensaladas: '5',
+    Postres: '6',
+    Sopas: '7',
+    //Pescado: '8',
+    PlatosPrincipales: '8',
+    Aperitivos: '9',
+    Salsas: '10',
+  };
+
+  const ingredientIdMap: Record<string, string> = {
+    Pollo: '1',
+    Azucar: '2',
+    Manzanas: '3',
+    Levadura: '4',
+    Huevos: '5',
+    Leche: '6',
+    Mantequilla: '7',
+    Sal: '8',
+    Pimienta: '9',
+    Aceitedeoliva: '10',
+    Arroz: '11',
+    Tomates: '12',
+    Cebolla: '13',
+    Ajo: '14',
+    Queso: '15',
+    Chcocolatenegro: '16',
+    Vainilla: '17',
+    Limon: '18',
+    Zanahoria: '19',
+    Papa: '20',
+  };
 
   useEffect(() => {
     const fetchLatest = async () => {
@@ -56,6 +97,145 @@ const HomeScreen = () => {
 
     fetchLatest();
   }, []);
+
+  //Buesqueda de recetas por nombre
+  // Esta función se ejecuta cada vez que el usuario escribe en el campo de búsqueda
+  useEffect(() => {
+  if (search.trim().length === 0) {
+    setSearchResults([]);
+    setIsSearching(false);
+    return;
+  }
+  setIsSearching(true);
+
+  const timeout = setTimeout(async () => {
+    try {
+      //const url = `${API_BASE_URL}/recipes/search?search=${encodeURIComponent(search)}`;
+      const url = `${API_BASE_URL}/recipes/search&nombre=${encodeURIComponent(search)}&orden=nombre_asc`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const text = await response.text();
+      //console.log('Respuesta búsqueda:', text);
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (err) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+      if (json.status === 200 && json.data) {
+        const adaptedData = json.data.map((item: any) => ({
+          id: String(item.idReceta),
+          title: item.nombre,
+          image: { uri: item.imagen },
+          author: item.usuario,
+          createdAt: new Date(item.fechaPublicacion).getTime(),
+          rating: 5,
+        }));
+        setSearchResults(adaptedData);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      setSearchResults([]);
+    }
+    setIsSearching(false);
+  }, 500); // debounce
+
+  return () => clearTimeout(timeout);
+
+}, [search]);
+
+// Filtros de recetas por tipo, ingredientes incluidos y excluidos
+// Esta función se ejecuta al cargar la pantalla y cada vez que cambian las recetas
+useEffect(() => {
+  // Detecta si hay filtros activos
+  const hasInclude = filters.include && filters.include.length > 0;
+  const hasExclude = filters.exclude && filters.exclude.length > 0;
+  const hasCategory = filters.categories && filters.categories.length > 0;
+
+  // Si no hay ningún filtro, muestra todas las recetas
+  if (!hasInclude && !hasExclude && !hasCategory) {
+    setFilteredRecipes(null);
+    return;
+  }
+
+  setIsSearching(true);
+
+  // Convierte los nombres de ingredientes a IDs
+  const incluirIds = (filters.include || [])
+    .map((name) => ingredientIdMap[name])
+    .filter(Boolean)
+    .join(',');
+
+  const excluirIds = (filters.exclude || [])
+    .map((name) => ingredientIdMap[name])
+    .filter(Boolean)
+    .join(',');
+
+  // Convierte la categoría a ID
+  const tipoId = hasCategory
+    ? categoryIdMap[filters.categories[0].replace(/\s/g, '')]
+    : undefined;
+
+  // Construye la URL según los filtros activos
+  let url = `${API_BASE_URL}/recipes/search`;
+  const params: string[] = [];
+  if (tipoId) params.push(`tipo=${tipoId}`);
+  if (incluirIds) params.push(`incluirIngredientes=${incluirIds}`);
+  if (excluirIds) params.push(`excluirIngredientes=${excluirIds}`);
+  params.push('orden=fecha_asc');
+  url += '&' + params.join('&');
+
+  let cancelled = false;
+
+  const fetchFiltered = async () => {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const text = await response.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (err) {
+        if (!cancelled) setFilteredRecipes([]);
+        setIsSearching(false);
+        return;
+      }
+      if (json.status === 200 && json.data) {
+        const adaptedData = json.data.map((item: any) => ({
+          id: String(item.idReceta),
+          title: item.nombre,
+          image: { uri: item.imagenMiniatura || item.imagen },
+          author: item.usuario,
+          createdAt: new Date(item.fecha).getTime(),
+          rating: 5,
+        }));
+        if (!cancelled) setFilteredRecipes(adaptedData);
+      } else {
+        if (!cancelled) setFilteredRecipes([]);
+      }
+    } catch (error) {
+      if (!cancelled) setFilteredRecipes([]);
+    }
+    setIsSearching(false);
+  };
+
+  fetchFiltered();
+
+  return () => {
+    cancelled = true;
+  };
+}, [filters.include, filters.exclude, filters.categories]);
 
   const applySort = (list: Recipe[]) => {
     return [...list].sort((a, b) => {
@@ -177,12 +357,43 @@ const HomeScreen = () => {
 
       <FlatList
         style={styles.list}
+        data={
+          search.trim().length > 0
+            ? searchResults
+            : filteredRecipes !== null
+            ? filteredRecipes
+            : sorted
+        }
+        keyExtractor={(item) => item.id}
+        renderItem={renderRecipe}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={true}
+        ListEmptyComponent={
+          isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
+        }
+      />
+      
+
+      {/* <FlatList
+        style={styles.list}
+        data={search.trim().length > 0 ? searchResults : sorted}
+        keyExtractor={(item) => item.id}
+        renderItem={renderRecipe}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={true}
+        ListEmptyComponent={
+          isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
+        }
+      /> */}
+
+      {/* <FlatList
+        style={styles.list}
         data={sorted}
         keyExtractor={(item) => item.id}
         renderItem={renderRecipe}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={true}
-      />
+      /> */}
 
       {/* ⚠️ Mensaje de inicio de sesión (solo si no hay usuario) */}
       {!user && (
