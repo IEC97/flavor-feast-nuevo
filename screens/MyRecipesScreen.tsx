@@ -21,22 +21,48 @@ const MyRecipesScreen = () => {
   const { myRecipes, deleteRecipe } = useRecipeContext();
 
   const [showPrompt, setShowPrompt] = React.useState(false);
+  const [promptType, setPromptType] = React.useState<'create' | 'delete' | null>(null);
+  const [recipeToDelete, setRecipeToDelete] = React.useState<string | null>(null);
 
   const goToEdit = (recipe: any) => {
     navigation.navigate('RecipeForm', { recipe });
   };
   const goToCreate = () => {
+    setPromptType('create');
     setShowPrompt(true);
   };
+  /* const goToCreate = () => {
+    setShowPrompt(true);
+  }; */
 
   const handleYes = () => {
+    if (promptType === 'create') {
+      setShowPrompt(false);
+      setPromptType(null);
+      navigation.navigate('RecipeForm');
+    } else if (promptType === 'delete' && recipeToDelete) {
+      deleteRecipe(recipeToDelete);
+      setShowPrompt(false);
+      setPromptType(null);
+      setRecipeToDelete(null);
+      navigation.navigate('HomeTabs', { screen: 'MyRecipes' });
+    }
+  };
+
+  /* const handleYes = () => {
     setShowPrompt(false);
     navigation.navigate('RecipeForm');
-  };
+  }; */
 
   const handleNo = () => {
     setShowPrompt(false);
+    setPromptType(null);
+    setRecipeToDelete(null);
   };
+
+  /* const handleNo = () => {
+    setShowPrompt(false);
+  }; */
 
   /* const goToCreate = () => {
     navigation.navigate('RecipeForm');
@@ -83,13 +109,23 @@ const MyRecipesScreen = () => {
               <TouchableOpacity onPress={() => goToEdit(item)}>
                 <Ionicons name="create-outline" size={22} color="#555" />
               </TouchableOpacity>
+
               <TouchableOpacity
+                onPress={() => {
+                  setRecipeToDelete(item.id);
+                  setPromptType('delete');
+                  setShowPrompt(true);
+                }}
+              >
+
+              {/* <TouchableOpacity
                 onPress={() => {
                   console.log('🧪 BOTÓN ELIMINAR PRESIONADO:', item.id);
                   deleteRecipe(item.id);
                   navigation.navigate('HomeTabs', { screen: 'MyRecipes' });
                 }}
-              >
+              > */}
+
                 <Ionicons name="trash-outline" size={22} color="#c00" />
               </TouchableOpacity>
             </View>
@@ -101,7 +137,34 @@ const MyRecipesScreen = () => {
         <Text style={styles.buttonText}>Nueva receta</Text>
       </TouchableOpacity>
 
+
       {showPrompt && (
+        <View style={styles.promptOverlay}>
+          <View style={styles.promptBox}>
+            {promptType === 'create' ? (
+              <>
+                <MaterialIcons name="add-box" size={32} color="#23294c" style={{ alignSelf: 'center' }} />
+                <Text style={styles.promptText}>¿Deseas crear una Receta?</Text>
+              </>
+            ) : (
+              <>
+                <MaterialIcons name="delete-outline" size={32} color="#c00" style={{ alignSelf: 'center' }} />
+                <Text style={styles.promptText}>¿Deseas eliminar la Receta?</Text>
+              </>
+            )}
+            <View style={styles.promptButtons}>
+              <TouchableOpacity style={styles.promptYes} onPress={handleYes}>
+                <Text style={styles.promptYesText}>Sí</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.promptNo} onPress={handleNo}>
+                <Text style={styles.promptNoText}>No</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* {showPrompt && (
         <View style={styles.promptOverlay}>
           <View style={styles.promptBox}>
             <MaterialIcons name="add-box" size={32} color="#23294c" style={{ alignSelf: 'center' }} />
@@ -116,7 +179,7 @@ const MyRecipesScreen = () => {
             </View>
           </View>
         </View>
-      )}
+      )} */}
 
     </View>
   );

@@ -49,21 +49,40 @@ const RecipeFormScreen = () => {
     }
   }, [editingRecipe]);
 
+  useEffect(() => {
+    (async () => {
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    })();
+  }, []);
+
   const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: [ImagePicker.MediaType.Image],
+      allowsEditing: true,
+      quality: 0.7,
+    });
+     console.log(result);
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  /* const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
       Alert.alert('Permiso requerido', 'Se necesita permiso para acceder a la galería.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      //mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Image],
       allowsEditing: true,
       quality: 0.7,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setImageUri(result.assets[0].uri);
     }
-  };
+  }; */
 
   const handleSubmit = () => {
     if (!title || !author || !time || !description) {
@@ -148,7 +167,7 @@ const RecipeFormScreen = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       
-      <Text style={styles.label}>Imagen de la receta</Text>
+      <Text style={styles.label}>Imagen de la receta *</Text>
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, marginBottom: 10, borderRadius: 8 }} />
       ) : (
@@ -232,6 +251,7 @@ const styles = StyleSheet.create({
   label: {
     fontWeight: 'bold',
     marginTop: 10,
+    fontSize: 15,
   },
   input: {
     borderWidth: 1,
@@ -245,37 +265,40 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   submitButton: {
-    marginTop: 20,
-    backgroundColor: '#007BFF',
+    marginTop: 15,
+    backgroundColor: '#23294c',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 30,
     alignItems: 'center',
   },
   submitButtonText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   secondaryButton: {
     marginTop: 10,
     backgroundColor: '#23244c',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 29,
     alignItems: 'center',
   },
   secondaryText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: 15
   },
   cancelButton: {
     marginTop: 10,
     backgroundColor: '#6c757d',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 30,
     alignItems: 'center',
   },
   cancelText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   deleteButton: {
     marginTop: 20,

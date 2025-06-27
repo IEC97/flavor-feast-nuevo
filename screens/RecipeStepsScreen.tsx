@@ -1,5 +1,6 @@
 // screens/RecipeStepsScreen.tsx
-import React, { useState } from 'react';
+//import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +25,12 @@ const RecipeStepsScreen = () => {
 
   const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
 
+  useEffect(() => {
+    (async () => {
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    })();
+  }, []);
+
 
 
   const addStep = () => {
@@ -38,14 +45,27 @@ const RecipeStepsScreen = () => {
 
   const pickImage = async (index: number) => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Image],
+      allowsEditing: true,
+      quality: 1,
+    });
+    console.log(result);
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange(index, 'image', { uri: result.assets[0].uri });
+    }
+  };
+
+  /* const pickImage = async (index: number) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      //mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Image],
       allowsEditing: true,
       quality: 1,
     });
     if (!result.canceled) {
       handleChange(index, 'image', { uri: result.assets[0].uri });
     }
-  };
+  }; */
 
   const handleSave = () => {
     const validSteps = steps.filter((step) => step.text.trim() !== '');
@@ -72,7 +92,7 @@ const RecipeStepsScreen = () => {
             style={styles.input}
           />
           <TouchableOpacity style={styles.imageBtn} onPress={() => pickImage(index)}>
-            <Text style={{ color: 'white' }}>{step.image ? 'Cambiar imagen' : 'Subir imagen'}</Text>
+            <Text style={{ color: 'white', fontSize:16 }}>{step.image ? 'Cambiar imagen' : 'Subir imagen'}</Text>
           </TouchableOpacity>
           {step.image && <Image source={step.image} style={styles.img} />}
         </View>
@@ -110,7 +130,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
   },
-  label: { fontWeight: 'bold', marginBottom: 4 },
+  label: { fontWeight: 'bold', marginBottom: 4, fontSize: 16 },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -122,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#23244c',
     padding: 10,
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: 20,
   },
   img: {
     width: '100%',
@@ -133,16 +153,18 @@ const styles = StyleSheet.create({
   addStep: {
     color: '#007AFF',
     marginBottom: 20,
+    fontSize: 16,
   },
   saveBtn: {
-    backgroundColor: '#28a745',
+    backgroundColor: '#23294c',
     padding: 14,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 30,
   },
   saveText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
