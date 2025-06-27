@@ -14,11 +14,14 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
+import { useUserContext } from '../context/UserContext';
 //import { useFilterContext } from '../context/FilterContext';
 
 const MyRecipesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Home'>>();
   const { myRecipes, deleteRecipe } = useRecipeContext();
+
+  const { user } = useUserContext(); // <-- Agrega esto
 
   const [showPrompt, setShowPrompt] = React.useState(false);
   const [promptType, setPromptType] = React.useState<'create' | 'delete' | null>(null);
@@ -27,10 +30,21 @@ const MyRecipesScreen = () => {
   const goToEdit = (recipe: any) => {
     navigation.navigate('RecipeForm', { recipe });
   };
+
   const goToCreate = () => {
+    if (!user) {
+      // Si no hay usuario, muestra un mensaje o navega a Login
+      alert('Debes iniciar sesión para crear una receta.');
+      return;
+    }
     setPromptType('create');
     setShowPrompt(true);
   };
+
+  /* const goToCreate = () => {
+    setPromptType('create');
+    setShowPrompt(true);
+  }; */
   /* const goToCreate = () => {
     setShowPrompt(true);
   }; */

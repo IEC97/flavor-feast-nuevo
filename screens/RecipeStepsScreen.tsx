@@ -22,8 +22,10 @@ const RecipeStepsScreen = () => {
   const route = useRoute<any>();
   const recipe = route.params?.recipe as Recipe;
 
+  const { addRecipe } = useRecipeContext();
 
-  const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
+  const [steps, setSteps] = useState(recipe?.steps || []);
+  //const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
 
   useEffect(() => {
     (async () => {
@@ -68,6 +70,27 @@ const RecipeStepsScreen = () => {
   }; */
 
   const handleSave = () => {
+
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      Alert.alert('Error', 'Debe ingresar al menos un ingrediente.');
+      return;
+    }
+    if (steps.length === 0 || steps.every(s => !s.text && !s.description)) {
+      Alert.alert('Error', 'Debe ingresar al menos un paso.');
+      return;
+    }
+
+    // Crea la receta completa y la guarda
+    const completeRecipe = {
+      ...recipe,
+      steps,
+    };
+
+    addRecipe(completeRecipe);
+    navigation.navigate('RecipeDetails', { recipe: completeRecipe });
+  };
+
+  /* const handleSave = () => {
     const validSteps = steps.filter((step) => step.text.trim() !== '');
     if (validSteps.length === 0) {
       alert('Debes ingresar al menos un paso con descripción.');
@@ -75,7 +98,7 @@ const RecipeStepsScreen = () => {
     }
     editRecipe(recipe.id, { ...recipe, steps: validSteps });
     navigation.navigate('HomeTabs');
-  };
+  }; */
   
 
   return (

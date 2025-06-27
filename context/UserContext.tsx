@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useState } from 'react';
 import { API_BASE_URL } from '../constants';
 
+/* type User = {
+  username: string;
+  email: string;
+} | null; */
 type User = {
+  id: string; // <--- Añade el id
   username: string;
   email: string;
 } | null;
@@ -49,9 +54,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (result.status === 200 && result.data) {
         setUser({
+          id: result.data.idUsuario, // <--- Guarda el idUsuario
           username: result.data.alias,
           email: email,
         });
+        console.log('Usuario guardado en contexto:', {
+        id: result.data.idUsuario,
+        username: result.data.alias,
+        email: email,
+      });
         return true;
       } else {
         console.warn('Login fallido:', result.message);

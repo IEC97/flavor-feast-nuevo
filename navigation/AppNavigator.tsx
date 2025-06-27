@@ -51,24 +51,43 @@ function HomeTabs() {
 
 export default function AppNavigator() {
   return (
-    <UserProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="HomeTabs" // 👈 Esto define que arranque acá
-          screenOptions={{ headerShown: false }}
-        >
-          <Stack.Screen name="HomeTabs" component={HomeTabs} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="RecipeDetails" component={RecipeDetailsScreen} />
-          <Stack.Screen name="RecipeForm" component={RecipeFormScreen} />
-          <Stack.Screen name="RecipeSteps" component={RecipeStepsScreen} />
-          <Stack.Screen name="FilterScreen" component={FilterScreen} />
-          <Stack.Screen name="SortOptions" component={SortOptionsScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />
-          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </UserProvider>
+    
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="HomeTabs" // 👈 Esto define que arranque acá
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="HomeTabs" component={HomeTabs} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="RecipeDetails" component={RecipeDetailsScreen} />
+        <Stack.Screen name="RecipeForm" component={RecipeFormScreen} />
+        <Stack.Screen name="RecipeSteps" component={RecipeStepsScreen} />
+        <Stack.Screen name="FilterScreen" component={FilterScreen} />
+        <Stack.Screen name="SortOptions" component={SortOptionsScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+    
   );
 }
+{/* <UserProvider>
+  <NavigationContainer>
+    <Stack.Navigator
+      initialRouteName="HomeTabs" // 👈 Esto define que arranque acá
+      screenOptions={{ headerShown: false }}
+    >
+      <Stack.Screen name="HomeTabs" component={HomeTabs} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="RecipeDetails" component={RecipeDetailsScreen} />
+      <Stack.Screen name="RecipeForm" component={RecipeFormScreen} />
+      <Stack.Screen name="RecipeSteps" component={RecipeStepsScreen} />
+      <Stack.Screen name="FilterScreen" component={FilterScreen} />
+      <Stack.Screen name="SortOptions" component={SortOptionsScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+    </Stack.Navigator>
+  </NavigationContainer>
+</UserProvider> */}

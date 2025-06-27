@@ -43,10 +43,13 @@ const LoginScreen = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useUser();
+  //const { login } = useUser();
+  const { login, user } = useUser();
 
   const handleLogin = async () => {
     const success = await login(email, password);
+    console.log('Login success:', success);
+    //console.log('Usuario después de login:', user);
     if (success) {
       navigation.navigate('HomeTabs');
     } else {

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Recipe } from '../types';
 import { API_BASE_URL } from '../constants'; 
-
+import { useUserContext } from './UserContext';
 
 export type RootStackParamList = {
   HomeTabs: undefined;
@@ -33,10 +33,12 @@ export const useRecipeContext = () => {
 const API_URL = (`${API_BASE_URL}/recipes`);
 
 
-
 export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [favorites, setFavorites] = useState<Recipe[]>([]);
+
+  const { user } = useUserContext();
+  const idUsuario = user?.id;
 
   const myRecipes = recipes.filter((r) => r.createdByUser);
 
@@ -80,8 +82,68 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     fetchRecipes();
   }, []);
 
-  const addRecipe = (recipe: Recipe) => {
+  /* const addRecipe = (recipe: Recipe) => {
     setRecipes((prev) => [...prev, { ...recipe, createdByUser: true }]);
+  }; */
+
+  const addRecipe = async (recipe: Recipe) => {
+    //console.log('Valor de user en addRecipe:', user);
+    if (!user?.id) {
+      console.error('No hay usuario autenticado');
+      return;
+    }
+
+    // Transforma el objeto al formato esperado por el backend
+    const backendRecipe = {
+      idUsuario: user.id,
+      nombre: recipe.title,
+      descripcion: recipe.description, // <-- Siempre presente
+      //imagen: recipe.image?.uri,       // <-- Siempre presente
+      //imagen: recipe.image?.uri || 'URL_O_PATH_DE_IMAGEN_POR_DEFECTO',
+      // Si hay imagen seleccionada, usa su URL; si no, usa una URL de placeholder
+      imagen: recipe.image?.uri || 'https://via.placeholder.com/300x200.png?text=Receta',
+      tipoId: recipe.categoryId,
+      porciones: recipe.servings,
+      ingredientes: recipe.ingredients.map(i => ({
+        nombre: i.name,
+        cantidad: i.quantity,
+        unidad: i.unit,
+      })),
+      pasos: recipe.steps.map(s => ({
+        descripcion: s.description,
+        multimedia: s.image?.uri || '',
+      })),
+    };
+    // 1. Llama al backend para crear la receta
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/recipes`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(backendRecipe),
+        }
+      );
+      const json = await response.json();
+      console.log('Respuesta del backend:', json);
+
+      const statusCode = Number(json.status);
+
+      // 2. Si la creación fue exitosa, agrega la receta al estado local
+      if (statusCode >= 200 && statusCode < 300 && json.data) {
+        // Muestra el mensaje del backend al usuario (creado o actualizado)
+        console.log('✅ Receta guardada:', json.message);
+        setRecipes((prev) => [
+          ...prev,
+          { ...recipe, id: json.data.idReceta || Date.now().toString(), createdByUser: true },
+        ]);
+      } else {
+        console.error('Error al crear receta:', json.message);
+      }
+
+    } catch (error) {
+      console.error('Error al conectar con el backend:', error);
+    }
   };
   
 
@@ -90,6 +152,46 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   }; */
 
   const editRecipe = async (id: string, updated: Partial<Recipe>) => {
+  setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+
+  // Solo sincroniza si la receta fue creada por el usuario
+  const recipeToEdit = recipes.find((r) => r.id === id);
+    if (recipeToEdit?.createdByUser && user?.id) {
+      // Transforma el objeto al formato esperado por el backend
+      const backendRecipe = {
+        idUsuario: user.id,
+        nombre: updated.title ?? recipeToEdit.title,
+        descripcion: updated.description ?? recipeToEdit.description,
+        imagen: updated.image?.uri ?? recipeToEdit.image?.uri,
+        tipoId: updated.categoryId ?? recipeToEdit.categoryId,
+        porciones: updated.servings ?? recipeToEdit.servings,
+        ingredientes: (updated.ingredients ?? recipeToEdit.ingredients).map(i => ({
+          nombre: i.name,
+          cantidad: i.quantity,
+          unidad: i.unit,
+        })),
+        pasos: (updated.steps ?? recipeToEdit.steps).map(s => ({
+          descripcion: s.description,
+          multimedia: s.image?.uri || '',
+        })),
+      };
+
+      try {
+        await fetch(
+          `${API_BASE_URL}/recipes/${id}&method=PUT`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(backendRecipe),
+          }
+        );
+      } catch (error) {
+        console.error('Error actualizando receta en backend:', error);
+      }
+    }
+  };
+
+  /* const editRecipe = async (id: string, updated: Partial<Recipe>) => {
     setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
 
     // Solo sincroniza si la receta fue creada por el usuario
@@ -108,7 +210,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Error actualizando receta en backend:', error);
       }
     }
-  };
+  }; */
 
   const deleteRecipe = (id: string) => {
     console.log('🗑️ Eliminando receta con ID:', id);
