@@ -130,15 +130,19 @@ const RecipeFormScreen = () => {
   }; */
 
   const handleSubmit = () => {
-    if (!title || !author || !time || !description || !servings || !categoryId) {
-      Alert.alert('Error', 'Todos los campos son obligatorios.');
-      return;
+    if (!editingRecipe) {
+      // Validaciones solo al crear nueva receta
+      if (!title || !author || !time || !description || !servings || !categoryId) {
+        Alert.alert('Error', 'Todos los campos son obligatorios.');
+        return;
+      }
+
+      if (ingredients.length === 0 || ingredients.some(i => !i.name || !i.quantity)) {
+        Alert.alert('Error', 'Debe ingresar al menos un ingrediente con cantidad.');
+        return;
+      }
     }
 
-    if (ingredients.length === 0 || ingredients.some(i => !i.name || !i.quantity)) {
-      Alert.alert('Error', 'Debe ingresar al menos un ingrediente con cantidad.');
-      return;
-    }
 
 
     const recipeData: Recipe = {

@@ -151,8 +151,8 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
   }; */
 
-  const editRecipe = async (id: string, updated: Partial<Recipe>) => {
-  setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+ /*  const editRecipe = async (id: string, updated: Partial<Recipe>) => {
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
 
   // Solo sincroniza si la receta fue creada por el usuario
   const recipeToEdit = recipes.find((r) => r.id === id);
@@ -189,7 +189,84 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Error actualizando receta en backend:', error);
       }
     }
+  }; */
+
+  const editRecipe = async (id: string, updated: Partial<Recipe>) => {
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+
+    const recipeToEdit = recipes.find((r) => r.id === id);
+    if (recipeToEdit?.createdByUser && user?.id) {
+      const camposModificados: any = {};
+
+      if (updated.title && updated.title !== recipeToEdit.title) {
+        camposModificados.nombre = updated.title;
+      }
+      if (updated.description && updated.description !== recipeToEdit.description) {
+        camposModificados.descripcion = updated.description;
+      }
+      if (updated.image?.uri && updated.image.uri !== recipeToEdit.image?.uri) {
+        camposModificados.imagen = updated.image.uri;
+      }
+      if (
+        typeof updated.servings === 'number' &&
+        updated.servings !== recipeToEdit.servings
+      ) {
+        camposModificados.porciones = updated.servings;
+      }
+      if (
+        typeof updated.categoryId === 'number' &&
+        updated.categoryId !== recipeToEdit.categoryId
+      ) {
+        camposModificados.tipoId = updated.categoryId;
+      }
+      if (
+        updated.ingredients &&
+        JSON.stringify(updated.ingredients) !== JSON.stringify(recipeToEdit.ingredients)
+      ) {
+        camposModificados.ingredientes = updated.ingredients.map((i) => ({
+          idIngrediente: i.id || 1, // Ajustá esto si manejás IDs reales
+          cantidad: i.quantity,
+          unidad: i.unit,
+        }));
+      }
+      if (
+        updated.steps &&
+        JSON.stringify(updated.steps) !== JSON.stringify(recipeToEdit.steps)
+      ) {
+        camposModificados.pasos = updated.steps.map((s) => ({
+          descripcion: s.description,
+          multimedia: s.image?.uri || '',
+        }));
+      }
+
+      // Si no hay cambios, no mandamos nada
+      if (Object.keys(camposModificados).length === 0) {
+        console.log('No hay cambios para actualizar');
+        return;
+      }
+
+      const body = {
+        idUsuario: user.id,
+        id,
+        camposModificados,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/recipes/${id}&method=PUT`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        console.log('📝 Respuesta actualización:', json);
+      } catch (error) {
+        console.error('Error actualizando receta en backend:', error);
+      }
+    }
   };
+
+
+
 
   /* const editRecipe = async (id: string, updated: Partial<Recipe>) => {
     setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
