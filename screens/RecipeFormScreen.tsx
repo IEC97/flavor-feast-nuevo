@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useRecipeContext } from '../context/RecipeContext';
+import MyRecipesScreen from '../screens/MyRecipesScreen';
 import { Recipe } from '../types';
 
 import * as ImagePicker from 'expo-image-picker';
@@ -91,7 +92,9 @@ const RecipeFormScreen = () => {
 
     if (editingRecipe) {
       editRecipe(editingRecipe.id, recipeData);
-      navigation.navigate('RecipeDetails', { recipe: recipeData });
+      //navigation.navigate('RecipeDetails', { recipe: recipeData });MyRecipesScreen
+      navigation.navigate('RecipeDetails', { recipe: recipeData, fromEdit: true });
+      //navigation.navigate('HomeTabs', { screen: 'Mis Recetas' });
     } else {
       addRecipe(recipeData);
       navigation.navigate('RecipeSteps', { recipe: recipeData });

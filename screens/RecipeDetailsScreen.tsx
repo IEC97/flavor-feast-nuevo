@@ -12,6 +12,8 @@ const RecipeDetailsScreen = () => {
   const { recipe } = route.params as { recipe: Recipe };
   const { toggleFavorite, isFavorite } = useRecipeContext();
 
+  const { fromEdit } = route.params || {};
+
   const [portions, setPortions] = useState(1);
 
   const adjustQuantity = (qty: number) => Math.round(qty * portions);
@@ -56,6 +58,23 @@ const RecipeDetailsScreen = () => {
           <Text>{index + 1}. {step.text}</Text>
         </View>
       ))}
+
+      {/* Botón solo si vienes de editar */}
+    {fromEdit && (
+      <TouchableOpacity
+        style={{
+          backgroundColor: '#23294c',
+          padding: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+          marginVertical: 16,
+        }}
+        onPress={() => navigation.navigate('HomeTabs', { screen: 'Mis Recetas'})}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>Volver a Mis Recetas</Text>
+      </TouchableOpacity>
+    )}
+
     </ScrollView>
   );
 };

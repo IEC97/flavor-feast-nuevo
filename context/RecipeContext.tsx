@@ -85,8 +85,29 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
 
-  const editRecipe = (id: string, updated: Partial<Recipe>) => {
+  /* const editRecipe = (id: string, updated: Partial<Recipe>) => {
     setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+  }; */
+
+  const editRecipe = async (id: string, updated: Partial<Recipe>) => {
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+
+    // Solo sincroniza si la receta fue creada por el usuario
+    const recipeToEdit = recipes.find((r) => r.id === id);
+    if (recipeToEdit?.createdByUser) {
+      try {
+        await fetch(
+          `${API_BASE_URL}/recipes/${id}&method=PUT`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated),
+          }
+        );
+      } catch (error) {
+        console.error('Error actualizando receta en backend:', error);
+      }
+    }
   };
 
   const deleteRecipe = (id: string) => {
