@@ -7,10 +7,16 @@ export type Ingredient = {
   unit?: string;
 };
 
+export type AvailableIngredient = {
+  id: number;
+  name: string;
+};
+
 export type Step = {
   text?: string;
   description?: string;
   image?: ImageSourcePropType;
+  order?: number;
 };
 
 export type Recipe = {
@@ -27,6 +33,7 @@ export type Recipe = {
   createdAt?: number;
   servings?: number;
   categoryId?: number;
+  userId?: number; // ID del usuario que creó la receta
 };
 
 export type RootStackParamList = {

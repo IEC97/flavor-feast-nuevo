@@ -1,6 +1,6 @@
 // screens/RecipeDetailsScreen.tsx
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,54 +11,112 @@ const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
-  const { toggleFavorite, isFavorite } = useRecipeContext();
+  const { toggleFavorite, isFavorite, getRecipeDetails } = useRecipeContext();
 
   const { fromEdit } = route.params || {};
 
   const [portions, setPortions] = useState(1);
+  const [recipeWithDetails, setRecipeWithDetails] = useState<Recipe>(recipe);
+  const [loading, setLoading] = useState(false);
+
+  // Cargar ingredientes y pasos al entrar en la pantalla
+  useEffect(() => {
+    const loadRecipeDetails = async () => {
+      setLoading(true);
+      try {
+        console.log('🔍 Cargando detalles de receta:', recipe.id);
+        const completeRecipe = await getRecipeDetails(recipe.id);
+        
+        if (completeRecipe) {
+          setRecipeWithDetails(completeRecipe);
+          console.log('✅ Detalles cargados:', {
+            ingredients: completeRecipe.ingredients?.length || 0,
+            steps: completeRecipe.steps?.length || 0
+          });
+        } else {
+          console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
+        }
+      } catch (error) {
+        console.error('❌ Error al cargar detalles:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRecipeDetails();
+  }, [recipe.id, getRecipeDetails]);
 
   const adjustQuantity = (qty: number) => Math.round(qty * portions);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={recipe.image} style={styles.image} />
+      <Image source={recipeWithDetails.image} style={styles.image} />
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(recipe)}>
+      <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(recipeWithDetails)}>
         <Ionicons
-          name={isFavorite(recipe.id) ? 'heart' : 'heart-outline'}
+          name={isFavorite(recipeWithDetails.id) ? 'heart' : 'heart-outline'}
           size={26}
-          color={isFavorite(recipe.id) ? 'red' : '#fff'}
+          color={isFavorite(recipeWithDetails.id) ? 'red' : '#fff'}
         />
       </TouchableOpacity>
 
-      <Text style={styles.title}>{recipe.title}</Text>
-      <Text style={styles.meta}>Por: {recipe.author}</Text>
-      <Text style={styles.rating}>{'⭐'.repeat(recipe.rating)}</Text>
-      <Text style={styles.description}>{recipe.description}</Text>
+      <Text style={styles.title}>{recipeWithDetails.title}</Text>
+      <Text style={styles.meta}>Por: {recipeWithDetails.author}</Text>
+      <Text style={styles.rating}>{'⭐'.repeat(recipeWithDetails.rating)}</Text>
+      <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
       <Text style={styles.section}>Ingredientes</Text>
-      <View style={styles.portionsRow}>
-        <TouchableOpacity onPress={() => setPortions(Math.max(1, portions - 1))}>
-          <Ionicons name="remove-circle-outline" size={22} />
-        </TouchableOpacity>
-        <Text style={{ marginHorizontal: 10 }}>{portions} porciones</Text>
-        <TouchableOpacity onPress={() => setPortions(portions + 1)}>
-          <Ionicons name="add-circle-outline" size={22} />
-        </TouchableOpacity>
-      </View>
-      {recipe.ingredients?.map((ing, index) => (
-        <Text>- {ing.name} ({adjustQuantity(Number(ing.quantity))}g)</Text>
-      ))}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#23294c" />
+          <Text style={styles.loadingText}>Cargando ingredientes...</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.portionsRow}>
+            <TouchableOpacity onPress={() => setPortions(Math.max(1, portions - 1))}>
+              <Ionicons name="remove-circle-outline" size={22} />
+            </TouchableOpacity>
+            <Text style={{ marginHorizontal: 10 }}>{portions} porciones</Text>
+            <TouchableOpacity onPress={() => setPortions(portions + 1)}>
+              <Ionicons name="add-circle-outline" size={22} />
+            </TouchableOpacity>
+          </View>
+          {recipeWithDetails.ingredients?.map((ing, index) => 
+            React.createElement(Text, {
+              key: `ingredient-${ing.id || index}`,
+              style: styles.ingredientText
+            }, `• ${ing.name} (${adjustQuantity(Number(ing.quantity))} ${ing.unit || 'g'})`)
+          )}
+        </>
+      )}
 
       <Text style={styles.section}>Pasos</Text>
-      {recipe.steps?.map((step, index) => (
-        <View style={styles.stepCard}>
-          {step.image && <Image source={step.image} style={styles.stepImg} />}
-          <Text>{index + 1}. {step.text || step.description}</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#23294c" />
+          <Text style={styles.loadingText}>Cargando pasos...</Text>
         </View>
-      ))}
+      ) : (
+        recipeWithDetails.steps?.map((step, index) => 
+          React.createElement(View, {
+            key: `step-${step.order || index}`,
+            style: styles.stepCard
+          }, [
+            step.image ? React.createElement(Image, {
+              key: 'image',
+              source: step.image,
+              style: styles.stepImg
+            }) : null,
+            React.createElement(Text, {
+              key: 'text',
+              style: styles.stepText
+            }, `${index + 1}. ${step.text || step.description}`)
+          ].filter(Boolean))
+        )
+      )}
 
       {/* Botón solo si vienes de editar */}
     {fromEdit && (
@@ -144,6 +202,27 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 10,
     marginBottom: 6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#666',
+  },
+  ingredientText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+    paddingLeft: 8,
+  },
+  stepText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });
 
