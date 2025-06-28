@@ -65,6 +65,14 @@ const ForgotPasswordScreen = () => {
       <TouchableOpacity style={styles.button} onPress={handleRecover}>
         <Text style={styles.buttonText}>Enviar</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+        <Text style={styles.link}>Volver al inicio de sesión</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => navigation.navigate('HomeTabs')}>
+        <Text style={[styles.link]}>Seguir sin iniciar sesión</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -104,6 +112,11 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  link: {
+    color: '#5b5bff',
+    textDecorationLine: 'underline',
+    textAlign: 'center',
   },
 });
 

@@ -92,17 +92,22 @@ const LoginScreen = () => {
 
       {/* Enlaces */}
       <View style={styles.linksRow}>
+
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
           <Text style={[styles.link]}>
             ¿Olvidaste la contraseña?
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => navigation.navigate('HomeTabs')}>
+          <Text style={[styles.link]}>
+            Seguir sin iniciar sesión
+          </Text>
+        </TouchableOpacity>
 
         <View style={{ flexDirection: 'row', marginTop: 5, justifyContent: 'center' }}>
-          <Text>¿No tenes una cuenta? </Text>
-          <TouchableOpacity onPress={() => Alert.alert('Debes ingresar al sitio web para registrarte')}>
-            <Text style={{ color: '#0000FF', fontWeight: 'bold' }}>Registrate</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('RegisterInfo')}>
+          <Text style={{ color: '#0000FF', fontWeight: 'bold' }}>¿No tenes una cuenta? ¡Registrate!</Text>
           </TouchableOpacity>
         </View>
       </View>

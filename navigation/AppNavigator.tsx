@@ -18,6 +18,7 @@ import { UserProvider } from '../context/UserContext';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import VerifyCodeScreen from '../screens/VerifyCodeScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import RegisterInfoScreen from '../screens/RegisterInfoScreen';
 
 
 
@@ -64,6 +65,7 @@ export default function AppNavigator() {
         <Stack.Screen name="RecipeSteps" component={RecipeStepsScreen} />
         <Stack.Screen name="FilterScreen" component={FilterScreen} />
         <Stack.Screen name="SortOptions" component={SortOptionsScreen} />
+        <Stack.Screen name="RegisterInfo" component={RegisterInfoScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
