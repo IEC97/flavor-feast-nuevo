@@ -11,6 +11,7 @@ export type Step = {
   text?: string;
   description?: string;
   image?: ImageSourcePropType;
+  order?: number;
 };
 
 export type Recipe = {

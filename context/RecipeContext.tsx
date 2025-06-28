@@ -1,4 +1,3 @@
-
 // ✅ context/RecipeContext.tsx - CORREGIDO
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Recipe } from '../types';
@@ -19,6 +18,9 @@ type RecipeContextType = {
   deleteRecipe: (id: string) => void;
   toggleFavorite: (recipe: Recipe) => void;
   isFavorite: (id: string) => boolean;
+  getRecipeIngredients: (recipeId: string) => Promise<any[]>;
+  getRecipeSteps: (recipeId: string) => Promise<any[]>;
+  getRecipeDetails: (recipeId: string) => Promise<Recipe | null>;
 };
 
 const RecipeContext = createContext<RecipeContextType | undefined>(undefined);
@@ -320,9 +322,94 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     return favorites.some((r) => r.id === id);
   };
 
+  const getRecipeIngredients = async (recipeId: string): Promise<any[]> => {
+    try {
+      const url = `${API_BASE_URL}/recipes/${recipeId}/getRecipeIngredients`;
+      console.log('🔍 Fetching ingredients from:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      console.log('📥 Ingredients response:', json);
+      
+      if (json.status === 200 && json.data?.ingredientes) {
+        const mappedIngredients = json.data.ingredientes.map((ing: any) => ({
+          id: ing.id,
+          name: ing.nombre,
+          quantity: ing.cantidad,
+          unit: ing.unidad,
+        }));
+        console.log('✅ Mapped ingredients:', mappedIngredients);
+        return mappedIngredients;
+      }
+      console.log('⚠️ No ingredients found in response');
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener ingredientes:', error);
+      return [];
+    }
+  };
+
+  const getRecipeSteps = async (recipeId: string): Promise<any[]> => {
+    try {
+      const url = `${API_BASE_URL}/recipes/${recipeId}/steps`;
+      console.log('🔍 Fetching steps from:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      console.log('📥 Steps response:', json);
+      
+      if (json.status === 200 && json.data?.pasos) {
+        const mappedSteps = json.data.pasos.map((paso: any) => ({
+          text: paso.descripcion,
+          description: paso.descripcion,
+          order: paso.numero,
+          image: paso.multimedia ? { uri: paso.multimedia } : null,
+        }));
+        console.log('✅ Mapped steps:', mappedSteps);
+        return mappedSteps;
+      }
+      console.log('⚠️ No steps found in response');
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener pasos:', error);
+      return [];
+    }
+  };
+  const getRecipeDetails = async (recipeId: string): Promise<Recipe | null> => {
+    try {
+      console.log('🔍 Getting recipe details for ID:', recipeId);
+      const [ingredients, steps] = await Promise.all([
+        getRecipeIngredients(recipeId),
+        getRecipeSteps(recipeId)
+      ]);
+
+      const baseRecipe = recipes.find(r => r.id === recipeId);
+      console.log('📋 Base recipe found:', baseRecipe?.title || 'Not found');
+      console.log('🥕 Ingredients loaded:', ingredients?.length || 0);
+      console.log('📝 Steps loaded:', steps?.length || 0);
+      
+      if (baseRecipe) {
+        const completeRecipe = {
+          ...baseRecipe,
+          ingredients,
+          steps
+        };
+        console.log('✅ Complete recipe prepared:', {
+          title: completeRecipe.title,
+          ingredientsCount: completeRecipe.ingredients?.length || 0,
+          stepsCount: completeRecipe.steps?.length || 0
+        });
+        return completeRecipe;
+      }
+      console.log('❌ Base recipe not found for ID:', recipeId);
+      return null;
+    } catch (error) {
+      console.error('❌ Error al obtener detalles de receta:', error);
+      return null;
+    }
+  };
+
   return (
     <RecipeContext.Provider
-      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite }}
+      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, getRecipeIngredients, getRecipeSteps, getRecipeDetails }}
     >
       {children}
     </RecipeContext.Provider>

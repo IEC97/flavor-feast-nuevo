@@ -23,7 +23,7 @@ import { Image } from 'react-native';
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
 const RecipeFormScreen = () => {
-  const { addRecipe, editRecipe, deleteRecipe } = useRecipeContext();
+  const { addRecipe, editRecipe, deleteRecipe, getRecipeDetails } = useRecipeContext();
 
   const { user } = useUserContext(); // <-- Obtén el usuario autenticado
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -31,6 +31,7 @@ const RecipeFormScreen = () => {
 
   // Loader mientras el usuario se carga
   const [checkingUser, setCheckingUser] = useState(true);
+  const [loadingRecipeDetails, setLoadingRecipeDetails] = useState(false);
   const editingRecipe: Recipe | undefined = route.params?.recipe;
 
   const [imageUri, setImageUri] = useState<string | null>(() => {
@@ -72,16 +73,65 @@ const RecipeFormScreen = () => {
   
   useEffect(() => {
     if (editingRecipe) {
-      setTitle(editingRecipe.title);
-      setAuthor(editingRecipe.author);
-      setDescription(editingRecipe.description || '');
-      setSteps(editingRecipe.steps?.map(step => ({
-        text: step.text || step.description || '',
-        image: step.image
-      })) || []);
-      setIngredients(editingRecipe.ingredients || []);
+      // Cargar datos actualizados desde el backend al editar
+      const loadRecipeDetails = async () => {
+        setLoadingRecipeDetails(true);
+        try {
+          console.log('🔍 Cargando detalles para edición:', editingRecipe.id);
+          const completeRecipe = await getRecipeDetails(editingRecipe.id);
+          
+          if (completeRecipe) {
+            console.log('✅ Detalles cargados para edición:', {
+              ingredients: completeRecipe.ingredients?.length || 0,
+              steps: completeRecipe.steps?.length || 0
+            });
+            
+            // Usar datos del backend si están disponibles, sino usar los datos locales
+            setTitle(completeRecipe.title || editingRecipe.title);
+            setAuthor(completeRecipe.author || editingRecipe.author);
+            setDescription(completeRecipe.description || editingRecipe.description || '');
+            setSteps((completeRecipe.steps || editingRecipe.steps)?.map(step => ({
+              text: step.text || step.description || '',
+              image: step.image
+            })) || []);
+            setIngredients(completeRecipe.ingredients || editingRecipe.ingredients || []);
+            setServings((completeRecipe.servings || editingRecipe.servings || 1).toString());
+            setCategoryId((completeRecipe.categoryId || editingRecipe.categoryId || '').toString());
+          } else {
+            console.log('⚠️ No se pudieron cargar detalles, usando datos locales');
+            // Usar datos locales como fallback
+            setTitle(editingRecipe.title);
+            setAuthor(editingRecipe.author);
+            setDescription(editingRecipe.description || '');
+            setSteps(editingRecipe.steps?.map(step => ({
+              text: step.text || step.description || '',
+              image: step.image
+            })) || []);
+            setIngredients(editingRecipe.ingredients || []);
+            setServings((editingRecipe.servings || 1).toString());
+            setCategoryId((editingRecipe.categoryId || '').toString());
+          }
+        } catch (error) {
+          console.error('❌ Error al cargar detalles para edición:', error);
+          // Usar datos locales como fallback
+          setTitle(editingRecipe.title);
+          setAuthor(editingRecipe.author);
+          setDescription(editingRecipe.description || '');
+          setSteps(editingRecipe.steps?.map(step => ({
+            text: step.text || step.description || '',
+            image: step.image
+          })) || []);
+          setIngredients(editingRecipe.ingredients || []);
+          setServings((editingRecipe.servings || 1).toString());
+          setCategoryId((editingRecipe.categoryId || '').toString());
+        } finally {
+          setLoadingRecipeDetails(false);
+        }
+      };
+
+      loadRecipeDetails();
     }
-  }, [editingRecipe]);
+  }, [editingRecipe, getRecipeDetails]);
 
   useEffect(() => {
     (async () => {
@@ -89,10 +139,13 @@ const RecipeFormScreen = () => {
     })();
   }, []);
 
-  if (checkingUser) {
+  if (checkingUser || loadingRecipeDetails) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#23294c" />
+        <Text style={{ marginTop: 10, color: '#666' }}>
+          {checkingUser ? 'Verificando usuario...' : 'Cargando datos de la receta...'}
+        </Text>
       </View>
     );
   }
