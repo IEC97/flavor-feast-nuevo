@@ -48,17 +48,28 @@ const RecipeDetailsScreen = () => {
           <Ionicons name="add-circle-outline" size={22} />
         </TouchableOpacity>
       </View>
-      {recipe.ingredients?.map((ing, index) => (
-        <Text>- {ing.name} ({adjustQuantity(Number(ing.quantity))}g)</Text>
-      ))}
+      {recipe.ingredients?.map((ing, index) => 
+        React.createElement(Text, {
+          key: index
+        }, `- ${ing.name} (${adjustQuantity(Number(ing.quantity))}g)`)
+      )}
 
       <Text style={styles.section}>Pasos</Text>
-      {recipe.steps?.map((step, index) => (
-        <View style={styles.stepCard}>
-          {step.image && <Image source={step.image} style={styles.stepImg} />}
-          <Text>{index + 1}. {step.text || step.description}</Text>
-        </View>
-      ))}
+      {recipe.steps?.map((step, index) => 
+        React.createElement(View, {
+          key: index,
+          style: styles.stepCard
+        }, [
+          step.image ? React.createElement(Image, {
+            key: 'image',
+            source: step.image,
+            style: styles.stepImg
+          }) : null,
+          React.createElement(Text, {
+            key: 'text'
+          }, `${index + 1}. ${step.text || step.description}`)
+        ].filter(Boolean))
+      )}
 
       {/* Botón solo si vienes de editar */}
     {fromEdit && (
