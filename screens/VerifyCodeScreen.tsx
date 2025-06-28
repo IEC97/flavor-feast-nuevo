@@ -74,19 +74,19 @@ const VerifyCodeScreen = () => {
       </Text>
 
       <View style={styles.codeContainer}>
-        {codeDigits.map((digit, index) => (
-          <TextInput
-            key={index}
-            ref={(ref: TextInput | null) => {
-            inputs.current[index] = ref;
-            }}
-            style={styles.codeInput}
-            maxLength={1}
-            keyboardType="number-pad"
-            value={digit}
-            onChangeText={(text) => handleChange(text, index)}
-          />
-        ))}
+        {codeDigits.map((digit, index) => 
+          React.createElement(TextInput, {
+            key: index,
+            ref: (ref: TextInput | null) => {
+              inputs.current[index] = ref;
+            },
+            style: styles.codeInput,
+            maxLength: 1,
+            keyboardType: "number-pad" as const,
+            value: digit,
+            onChangeText: (text: string) => handleChange(text, index)
+          })
+        )}
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleVerify}>

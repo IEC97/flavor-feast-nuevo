@@ -11,9 +11,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { useRecipeContext } from '../context/RecipeContext';
 //import MyRecipesScreen from '../screens/MyRecipesScreen';
-import { Recipe } from '../types';
+import { Recipe, RootStackParamList } from '../types';
 import { useUserContext } from '../context/UserContext'; // <-- Agrega este import
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,21 +26,25 @@ const RecipeFormScreen = () => {
   const { addRecipe, editRecipe, deleteRecipe } = useRecipeContext();
 
   const { user } = useUserContext(); // <-- Obtén el usuario autenticado
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
 
   // Loader mientras el usuario se carga
   const [checkingUser, setCheckingUser] = useState(true);
   const editingRecipe: Recipe | undefined = route.params?.recipe;
 
-  const [imageUri, setImageUri] = useState<string | null>(() => editingRecipe?.image?.uri || null);
+  const [imageUri, setImageUri] = useState<string | null>(() => {
+    if (editingRecipe?.image && typeof editingRecipe.image === 'object' && 'uri' in editingRecipe.image) {
+      return editingRecipe.image.uri || null;
+    }
+    return null;
+  });
 
   //const editingRecipe: Recipe | undefined = route.params?.recipe;
   const [isEditing] = useState(() => !!editingRecipe);
 
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
-  const [time, setTime] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState<{ text: string; image: any }[]>([]);
   const [ingredients, setIngredients] = useState<{ name: string; quantity: number }[]>([]);
@@ -69,9 +74,11 @@ const RecipeFormScreen = () => {
     if (editingRecipe) {
       setTitle(editingRecipe.title);
       setAuthor(editingRecipe.author);
-      setTime(editingRecipe.time);
-      setDescription(editingRecipe.description);
-      setSteps(editingRecipe.steps || []);
+      setDescription(editingRecipe.description || '');
+      setSteps(editingRecipe.steps?.map(step => ({
+        text: step.text || step.description || '',
+        image: step.image
+      })) || []);
       setIngredients(editingRecipe.ingredients || []);
     }
   }, [editingRecipe]);
@@ -102,7 +109,7 @@ const RecipeFormScreen = () => {
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: [ImagePicker.MediaType.Image],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.7,
     });
@@ -132,8 +139,15 @@ const RecipeFormScreen = () => {
   const handleSubmit = () => {
     if (!editingRecipe) {
       // Validaciones solo al crear nueva receta
-      if (!title || !author || !time || !description || !servings || !categoryId) {
+      if (!title || !author || !description || !servings || !categoryId) {
         Alert.alert('Error', 'Todos los campos son obligatorios.');
+        return;
+      }
+
+      // Validar que categoryId sea un número válido
+      const parsedCategoryId = parseInt(categoryId, 10);
+      if (isNaN(parsedCategoryId)) {
+        Alert.alert('Error', 'Debe seleccionar una categoría válida.');
         return;
       }
 
@@ -149,9 +163,9 @@ const RecipeFormScreen = () => {
       id: editingRecipe?.id || generateId(),
       title,
       author,
-      time,
       description,
       rating: editingRecipe?.rating || 0,
+      category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
       //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
       image: imageUri ? { uri: imageUri } : require('../assets/placeholder.jpg'),
       //image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
@@ -159,7 +173,7 @@ const RecipeFormScreen = () => {
       ingredients,
       steps,
       createdByUser: true,
-      servings: parseInt(servings, 10),
+      servings: parseInt(servings, 10) || 1,
       categoryId: parseInt(categoryId, 10),
     };
 
@@ -196,9 +210,9 @@ const RecipeFormScreen = () => {
         id: editingRecipe?.id || generateId(),
         title,
         author,
-        time,
         description,
         rating: editingRecipe?.rating || 0,
+        category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
         //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
         image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
         ingredients,
@@ -212,7 +226,11 @@ const RecipeFormScreen = () => {
 
   const updateIngredient = (index: number, field: 'name' | 'quantity', value: string) => {
     const updated = [...ingredients];
-    updated[index][field] = field === 'quantity' ? parseFloat(value) || 0 : value;
+    if (field === 'quantity') {
+      updated[index] = { ...updated[index], quantity: parseFloat(value) || 0 };
+    } else {
+      updated[index] = { ...updated[index], name: value };
+    }
     setIngredients(updated);
   };
 
@@ -239,9 +257,6 @@ const RecipeFormScreen = () => {
       <Text style={styles.label}>Autor *</Text>
       <TextInput style={styles.input} value={author} onChangeText={setAuthor} />
 
-      <Text style={styles.label}>Tiempo *</Text>
-      <TextInput style={styles.input} value={time} onChangeText={setTime} />
-
       <Text style={styles.label}>Descripción *</Text>
       <TextInput
         style={[styles.input, styles.multiline]}
@@ -265,29 +280,38 @@ const RecipeFormScreen = () => {
         style={styles.input}
       >
         <Picker.Item label="Selecciona una categoría" value="" />
-        {categories.map((cat) => (
-          <Picker.Item key={cat.id} label={cat.name} value={cat.id.toString()} />
-        ))}
+        {categories.map((cat) => 
+          React.createElement(Picker.Item, {
+            key: cat.id,
+            label: cat.name,
+            value: cat.id.toString()
+          })
+        )}
       </Picker>
 
       <Text style={styles.label}>Ingredientes (con cantidad en gramos) *</Text>
-      {ingredients.map((ingredient, index) => (
-        <View key={index} style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
-          <TextInput
-            placeholder="Ingrediente"
-            style={[styles.input, { flex: 2 }]}
-            value={ingredient.name}
-            onChangeText={(text) => updateIngredient(index, 'name', text)}
-          />
-          <TextInput
-            placeholder="Cantidad"
-            style={[styles.input, { flex: 1 }]}
-            keyboardType="numeric"
-            value={ingredient.quantity.toString()}
-            onChangeText={(text) => updateIngredient(index, 'quantity', text)}
-          />
-        </View>
-      ))}
+      {ingredients.map((ingredient, index) => 
+        React.createElement(View, {
+          key: index,
+          style: { flexDirection: 'row', gap: 6, marginBottom: 8 }
+        }, [
+          React.createElement(TextInput, {
+            key: 'name',
+            placeholder: "Ingrediente",
+            style: [styles.input, { flex: 2 }],
+            value: ingredient.name,
+            onChangeText: (text: string) => updateIngredient(index, 'name', text)
+          }),
+          React.createElement(TextInput, {
+            key: 'quantity',
+            placeholder: "Cantidad",
+            style: [styles.input, { flex: 1 }],
+            keyboardType: "numeric",
+            value: ingredient.quantity.toString(),
+            onChangeText: (text: string) => updateIngredient(index, 'quantity', text)
+          })
+        ])
+      )}
       
 
       <TouchableOpacity onPress={addIngredient}>

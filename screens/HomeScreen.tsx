@@ -321,7 +321,7 @@ useEffect(() => {
               onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
             >
               <Image source={item.image} style={styles.latestImage} />
-              <View style={styles.latestTitle}>
+              <View style={styles.latestTitleContainer}>
                 {(() => {
                   const words = item.title.split(' ');
                   const mid = Math.ceil(words.length / 2);
@@ -329,12 +329,12 @@ useEffect(() => {
                   const line2 = words.slice(mid).join(' ');
 
                   return (
-                    <>
+                    <View>
                       <Text style={styles.latestTitle}>{line1}</Text>
                       {line2.length > 0 && (
                         <Text style={styles.latestTitle}>{line2}</Text>
                       )}
-                    </>
+                    </View>
                   );
                 })()}
               </View>
@@ -444,6 +444,10 @@ const styles = StyleSheet.create({
     width: 120,
     height: 100,
     borderRadius: 10,
+  },
+  latestTitleContainer: {
+    alignItems: 'center',
+    marginTop: 4,
   },
   latestTitle: {
     fontSize: 12,

@@ -5,14 +5,14 @@ import { RecipeProvider } from './context/RecipeContext';
 import { FilterProvider } from './context/FilterContext';
 import { UserProvider } from './context/UserContext';
 
-export default function App() {
+export default function App(): React.ReactElement {
+  const appNavigator = <AppNavigator />;
+  
   return (
-    <UserProvider> {/* <-- Envuelve aquí */}
-      <RecipeProvider>
-        <FilterProvider>
-          <AppNavigator />
-        </FilterProvider>
-      </RecipeProvider>
-    </UserProvider>
+    <UserProvider children={
+      <RecipeProvider children={
+        <FilterProvider children={appNavigator} />
+      } />
+    } />
   );
 }

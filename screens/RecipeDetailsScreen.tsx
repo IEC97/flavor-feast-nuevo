@@ -2,13 +2,14 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Recipe } from '../types';
+import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
   const { toggleFavorite, isFavorite } = useRecipeContext();
 
@@ -33,7 +34,7 @@ const RecipeDetailsScreen = () => {
       </TouchableOpacity>
 
       <Text style={styles.title}>{recipe.title}</Text>
-      <Text style={styles.meta}>Por: {recipe.author} · Tiempo: {recipe.time}</Text>
+      <Text style={styles.meta}>Por: {recipe.author}</Text>
       <Text style={styles.rating}>{'⭐'.repeat(recipe.rating)}</Text>
       <Text style={styles.description}>{recipe.description}</Text>
 
@@ -48,14 +49,14 @@ const RecipeDetailsScreen = () => {
         </TouchableOpacity>
       </View>
       {recipe.ingredients?.map((ing, index) => (
-        <Text key={index}>- {ing.name} ({adjustQuantity(Number(ing.quantity))}g)</Text>
+        <Text>- {ing.name} ({adjustQuantity(Number(ing.quantity))}g)</Text>
       ))}
 
       <Text style={styles.section}>Pasos</Text>
       {recipe.steps?.map((step, index) => (
-        <View key={index} style={styles.stepCard}>
+        <View style={styles.stepCard}>
           {step.image && <Image source={step.image} style={styles.stepImg} />}
-          <Text>{index + 1}. {step.text}</Text>
+          <Text>{index + 1}. {step.text || step.description}</Text>
         </View>
       ))}
 

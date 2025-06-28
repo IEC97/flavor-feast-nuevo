@@ -9,14 +9,22 @@ import MyRecipesScreen from '../screens/MyRecipesScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-const Tab = createBottomTabNavigator();
+type TabParamList = {
+  Recetas: undefined;
+  MisRecetas: undefined;
+  Favoritos: undefined;
+  Perfil: undefined;
+};
 
-const TabNavigator = () => {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
+const Tab = createBottomTabNavigator<TabParamList>();
+
+const TabNavigator = (): React.ReactElement => {
+  return React.createElement(
+    Tab.Navigator,
+    {
+      screenOptions: ({ route }: any) => ({
         headerShown: false,
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
           switch (route.name) {
@@ -38,13 +46,12 @@ const TabNavigator = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-      })}
-    >
-      <Tab.Screen name="Recetas" component={HomeScreen} />
-      <Tab.Screen name="MisRecetas" component={MyRecipesScreen} />
-      <Tab.Screen name="Favoritos" component={FavoritesScreen} />
-      <Tab.Screen name="Perfil" component={ProfileScreen} />
-    </Tab.Navigator>
+      })
+    },
+    React.createElement(Tab.Screen, { name: "Recetas", component: HomeScreen }),
+    React.createElement(Tab.Screen, { name: "MisRecetas", component: MyRecipesScreen }),
+    React.createElement(Tab.Screen, { name: "Favoritos", component: FavoritesScreen }),
+    React.createElement(Tab.Screen, { name: "Perfil", component: ProfileScreen })
   );
 };
 
