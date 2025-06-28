@@ -322,12 +322,13 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       };
 
       try {
+        // Construir URL correcta con los query parameters
         const url = `${API_BASE_URL}/recipes/${id}&method=PUT`;
         console.log('🔄 Enviando PUT a:', url);
         console.log('📦 Body:', JSON.stringify(body, null, 2));
         
         const res = await fetch(url, {
-          method: 'POST', // Cambiar a POST ya que el método real se especifica en la URL
+          method: 'POST', // POST con query parameters como en Postman
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });

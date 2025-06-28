@@ -131,33 +131,19 @@ const RecipeFormScreen = () => {
             })) || []);
             setIngredients(convertIngredientsToFormFormat(completeRecipe.ingredients || editingRecipe.ingredients || []));
             setServings((completeRecipe.servings || editingRecipe.servings || 1).toString());
-            
-            // Manejar categoryId con mayor cuidado
-            const categoryIdValue = completeRecipe.categoryId || editingRecipe.categoryId;
-            console.log('🏷️ Setting categoryId:', { 
-              fromComplete: completeRecipe.categoryId, 
-              fromEditing: editingRecipe.categoryId, 
-              final: categoryIdValue 
-            });
-            setCategoryId(categoryIdValue ? categoryIdValue.toString() : '1'); // Default a categoría 1 si no hay valor
-          } else {          console.log('⚠️ No se pudieron cargar detalles, usando datos locales');
-          // Usar datos locales como fallback
-          setTitle(editingRecipe.title);
-          setDescription(editingRecipe.description || '');
-          setSteps(editingRecipe.steps?.map(step => ({
-            text: step.text || step.description || '',
-            image: step.image
-          })) || []);
-          setIngredients(convertIngredientsToFormFormat(editingRecipe.ingredients || []));
-          setServings((editingRecipe.servings || 1).toString());
-          
-          // Manejar categoryId con mayor cuidado para fallback
-          const categoryIdValue = editingRecipe.categoryId;
-          console.log('🏷️ Setting categoryId (fallback):', { 
-            fromEditing: editingRecipe.categoryId, 
-            final: categoryIdValue 
-          });
-          setCategoryId(categoryIdValue ? categoryIdValue.toString() : '1'); // Default a categoría 1 si no hay valor
+            setCategoryId((completeRecipe.categoryId || editingRecipe.categoryId || '').toString());
+          } else {
+            console.log('⚠️ No se pudieron cargar detalles, usando datos locales');
+            // Usar datos locales como fallback
+            setTitle(editingRecipe.title);
+            setDescription(editingRecipe.description || '');
+            setSteps(editingRecipe.steps?.map(step => ({
+              text: step.text || step.description || '',
+              image: step.image
+            })) || []);
+            setIngredients(convertIngredientsToFormFormat(editingRecipe.ingredients || []));
+            setServings((editingRecipe.servings || 1).toString());
+            setCategoryId((editingRecipe.categoryId || '').toString());
           }
         } catch (error) {
           console.error('❌ Error al cargar detalles para edición:', error);
@@ -170,14 +156,7 @@ const RecipeFormScreen = () => {
           })) || []);
           setIngredients(convertIngredientsToFormFormat(editingRecipe.ingredients || []));
           setServings((editingRecipe.servings || 1).toString());
-          
-          // Manejar categoryId con mayor cuidado para catch
-          const categoryIdValue = editingRecipe.categoryId;
-          console.log('🏷️ Setting categoryId (catch):', { 
-            fromEditing: editingRecipe.categoryId, 
-            final: categoryIdValue 
-          });
-          setCategoryId(categoryIdValue ? categoryIdValue.toString() : '1'); // Default a categoría 1 si no hay valor
+          setCategoryId((editingRecipe.categoryId || '').toString());
         } finally {
           setLoadingRecipeDetails(false);
         }
