@@ -18,7 +18,7 @@ import { useUserContext } from '../context/UserContext';
 //import { useFilterContext } from '../context/FilterContext';
 
 const MyRecipesScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Home'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeForm'>>();
   const { myRecipes, deleteRecipe } = useRecipeContext();
 
   const { user } = useUserContext(); // <-- Agrega esto
@@ -53,7 +53,7 @@ const MyRecipesScreen = () => {
     if (promptType === 'create') {
       setShowPrompt(false);
       setPromptType(null);
-      navigation.navigate('RecipeForm');
+      navigation.navigate('RecipeForm', {});
     } else if (promptType === 'delete' && recipeToDelete) {
       deleteRecipe(recipeToDelete);
       setShowPrompt(false);

@@ -1,5 +1,4 @@
 // screens/RecipeStepsScreen.tsx
-//import React, { useState } from 'react';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,14 +8,16 @@ import {
   ScrollView,
   StyleSheet,
   Image,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRecipeContext } from '../context/RecipeContext';
-import { Recipe } from '../types';
+import { Recipe, RootStackParamList } from '../types';
 
 const RecipeStepsScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { editRecipe } = useRecipeContext();
 
   const route = useRoute<any>();
@@ -36,7 +37,7 @@ const RecipeStepsScreen = () => {
 
 
   const addStep = () => {
-    setSteps([...steps, { text: '', image: null }]);
+    setSteps([...steps, { text: '', image: undefined }]);
   };
 
   const handleChange = (index: number, field: 'text' | 'image', value: any) => {
@@ -47,7 +48,7 @@ const RecipeStepsScreen = () => {
 
   const pickImage = async (index: number) => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: [ImagePicker.MediaType.Image],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 1,
     });
@@ -105,21 +106,38 @@ const RecipeStepsScreen = () => {
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Pasos de la receta</Text>
 
-      {steps.map((step, index) => (
-        <View key={index} style={styles.stepCard}>
-          <Text style={styles.label}>Paso {index + 1}</Text>
-          <TextInput
-            placeholder="Descripción del paso"
-            value={step.text}
-            onChangeText={(text) => handleChange(index, 'text', text)}
-            style={styles.input}
-          />
-          <TouchableOpacity style={styles.imageBtn} onPress={() => pickImage(index)}>
-            <Text style={{ color: 'white', fontSize:16 }}>{step.image ? 'Cambiar imagen' : 'Subir imagen'}</Text>
-          </TouchableOpacity>
-          {step.image && <Image source={step.image} style={styles.img} />}
-        </View>
-      ))}
+      {steps.map((step, index) => 
+        React.createElement(View, {
+          key: index,
+          style: styles.stepCard
+        }, [
+          React.createElement(Text, {
+            key: 'label',
+            style: styles.label
+          }, `Paso ${index + 1}`),
+          React.createElement(TextInput, {
+            key: 'input',
+            placeholder: "Descripción del paso",
+            value: step.text || step.description || '',
+            onChangeText: (text: string) => handleChange(index, 'text', text),
+            style: styles.input
+          }),
+          React.createElement(TouchableOpacity, {
+            key: 'imageBtn',
+            style: styles.imageBtn,
+            onPress: () => pickImage(index)
+          }, 
+            React.createElement(Text, {
+              style: { color: 'white', fontSize: 16 }
+            }, step.image ? 'Cambiar imagen' : 'Subir imagen')
+          ),
+          step.image ? React.createElement(Image, {
+            key: 'image',
+            source: step.image,
+            style: styles.img
+          }) : null
+        ].filter(Boolean))
+      )}
 
       <TouchableOpacity onPress={addStep}>
         <Text style={styles.addStep}>+ Agregar otro paso</Text>

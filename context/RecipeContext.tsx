@@ -56,7 +56,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             author: r.usuario || 'Desconocido',
             rating: r.puntuacion || 5,
             category: r.tipo || 'Sin categoría',
-            image: { uri: r.imagen },
+            image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
             ingredients: r.ingredientes?.map((i: any) => ({
               name: i.nombre,
               quantity: i.cantidad,
@@ -87,9 +87,22 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   }; */
 
   const addRecipe = async (recipe: Recipe) => {
+    console.log('🍳 Datos de la receta recibida:', {
+      title: recipe.title,
+      categoryId: recipe.categoryId,
+      servings: recipe.servings,
+      description: recipe.description
+    });
+    
     //console.log('Valor de user en addRecipe:', user);
     if (!user?.id) {
       console.error('No hay usuario autenticado');
+      return;
+    }
+
+    // Validar que categoryId sea válido
+    if (!recipe.categoryId || isNaN(recipe.categoryId)) {
+      console.error('Error: categoryId es requerido y debe ser un número válido');
       return;
     }
 
@@ -97,21 +110,21 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     const backendRecipe = {
       idUsuario: user.id,
       nombre: recipe.title,
-      descripcion: recipe.description, // <-- Siempre presente
-      //imagen: recipe.image?.uri,       // <-- Siempre presente
-      //imagen: recipe.image?.uri || 'URL_O_PATH_DE_IMAGEN_POR_DEFECTO',
+      descripcion: recipe.description || '', // Valor por defecto si no hay descripción
       // Si hay imagen seleccionada, usa su URL; si no, usa una URL de placeholder
-      imagen: recipe.image?.uri || 'https://via.placeholder.com/300x200.png?text=Receta',
+      imagen: (recipe.image && typeof recipe.image === 'object' && 'uri' in recipe.image) 
+        ? recipe.image.uri 
+        : 'https://via.placeholder.com/300x200.png?text=Receta',
       tipoId: recipe.categoryId,
-      porciones: recipe.servings,
+      porciones: recipe.servings || 1, // Valor por defecto si no hay porciones
       ingredientes: recipe.ingredients.map(i => ({
         nombre: i.name,
         cantidad: i.quantity,
-        unidad: i.unit,
+        unidad: i.unit || '', // Valor por defecto si no hay unidad
       })),
       pasos: recipe.steps.map(s => ({
-        descripcion: s.description,
-        multimedia: s.image?.uri || '',
+        descripcion: s.description || s.text || '',
+        multimedia: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : '',
       })),
     };
     // 1. Llama al backend para crear la receta
@@ -204,7 +217,8 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       if (updated.description && updated.description !== recipeToEdit.description) {
         camposModificados.descripcion = updated.description;
       }
-      if (updated.image?.uri && updated.image.uri !== recipeToEdit.image?.uri) {
+      if (updated.image && typeof updated.image === 'object' && 'uri' in updated.image && 
+          updated.image.uri !== (recipeToEdit.image && typeof recipeToEdit.image === 'object' && 'uri' in recipeToEdit.image ? recipeToEdit.image.uri : '')) {
         camposModificados.imagen = updated.image.uri;
       }
       if (
@@ -234,8 +248,8 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         JSON.stringify(updated.steps) !== JSON.stringify(recipeToEdit.steps)
       ) {
         camposModificados.pasos = updated.steps.map((s) => ({
-          descripcion: s.description,
-          multimedia: s.image?.uri || '',
+          descripcion: s.description || s.text || '',
+          multimedia: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : '',
         }));
       }
 

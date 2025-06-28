@@ -15,7 +15,7 @@ import { RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 
 const FavoritesScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Home'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeDetails'>>();
   const { favorites, toggleFavorite } = useRecipeContext();
 
   const renderFavorite = ({ item }: any) => (
@@ -27,7 +27,6 @@ const FavoritesScreen = () => {
       <View style={styles.recipeInfo}>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.author}>Por: {item.author}</Text>
-        <Text style={styles.time}>⏱ {item.time}</Text>
         <Text style={styles.rating}>{'⭐'.repeat(item.rating)}</Text>
       </View>
       <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
@@ -92,10 +91,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   author: {
-    fontSize: 12,
-    color: '#555',
-  },
-  time: {
     fontSize: 12,
     color: '#555',
   },
