@@ -68,7 +68,6 @@ const RecipeFormScreen = () => {
   const [isEditing] = useState(() => !!editingRecipe);
 
   const [title, setTitle] = useState('');
-  const [author, setAuthor] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState<{ text: string; image: any }[]>([]);
   const [ingredients, setIngredients] = useState<{ id: number; ingredientId: number; quantity: number; unit: string }[]>([]);
@@ -125,7 +124,6 @@ const RecipeFormScreen = () => {
             
             // Usar datos del backend si están disponibles, sino usar los datos locales
             setTitle(completeRecipe.title || editingRecipe.title);
-            setAuthor(completeRecipe.author || editingRecipe.author);
             setDescription(completeRecipe.description || editingRecipe.description || '');
             setSteps((completeRecipe.steps || editingRecipe.steps)?.map(step => ({
               text: step.text || step.description || '',
@@ -138,7 +136,6 @@ const RecipeFormScreen = () => {
             console.log('⚠️ No se pudieron cargar detalles, usando datos locales');
             // Usar datos locales como fallback
             setTitle(editingRecipe.title);
-            setAuthor(editingRecipe.author);
             setDescription(editingRecipe.description || '');
             setSteps(editingRecipe.steps?.map(step => ({
               text: step.text || step.description || '',
@@ -152,7 +149,6 @@ const RecipeFormScreen = () => {
           console.error('❌ Error al cargar detalles para edición:', error);
           // Usar datos locales como fallback
           setTitle(editingRecipe.title);
-          setAuthor(editingRecipe.author);
           setDescription(editingRecipe.description || '');
           setSteps(editingRecipe.steps?.map(step => ({
             text: step.text || step.description || '',
@@ -229,8 +225,8 @@ const RecipeFormScreen = () => {
   const handleSubmit = () => {
     if (!editingRecipe) {
       // Validaciones solo al crear nueva receta
-      if (!title || !author || !description || !servings || !categoryId) {
-        Alert.alert('Error', 'Todos los campos son obligatorios.');
+      if (!title || !description || !servings || !categoryId) {
+        Alert.alert('Error', 'Por favor completa todos los campos requeridos.');
         return;
       }
 
@@ -252,7 +248,7 @@ const RecipeFormScreen = () => {
     const recipeData: Recipe = {
       id: editingRecipe?.id || generateId(),
       title,
-      author,
+      author: user?.username || user?.email || 'Usuario', // Usar datos del usuario autenticado
       description,
       rating: editingRecipe?.rating || 0,
       category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
@@ -319,7 +315,7 @@ const RecipeFormScreen = () => {
       recipe: {
         id: editingRecipe?.id || generateId(),
         title,
-        author,
+        author: user?.username || user?.email || 'Usuario', // Usar datos del usuario autenticado
         description,
         rating: editingRecipe?.rating || 0,
         category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
@@ -372,9 +368,6 @@ const RecipeFormScreen = () => {
 
       <Text style={styles.label}>Título *</Text>
       <TextInput style={styles.input} value={title} onChangeText={setTitle} />
-
-      <Text style={styles.label}>Autor *</Text>
-      <TextInput style={styles.input} value={author} onChangeText={setAuthor} />
 
       <Text style={styles.label}>Descripción *</Text>
       <TextInput

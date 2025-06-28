@@ -60,17 +60,20 @@ const MyRecipesScreen = () => {
     React.useCallback(() => {
       const refreshUserRecipes = async () => {
         if (user?.id && !loading) {
-          console.log('🔄 Refrescando recetas del usuario');
+          console.log('🔄 Refrescando recetas del usuario al regresar a la pantalla');
           try {
             const recipes = await getUserRecipes(user.id);
             setUserRecipes(recipes);
+            console.log('✅ Lista de recetas actualizada:', recipes.length, 'recetas');
           } catch (error) {
             console.error('❌ Error al refrescar recetas:', error);
           }
         }
       };
 
-      refreshUserRecipes();
+      // Pequeño delay para asegurar que la actualización del backend se haya completado
+      const timeoutId = setTimeout(refreshUserRecipes, 500);
+      return () => clearTimeout(timeoutId);
     }, [user?.id, getUserRecipes, loading])
   );
 

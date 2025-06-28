@@ -57,7 +57,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           const mapped = json.data.map((r: any): Recipe => ({
             id: r.idReceta,
             title: r.nombre,
-            author: r.usuario || 'Desconocido',
+            author: r.usuario || (r.idUsuario === user?.id ? (user?.username || user?.email) : 'Desconocido'),
             rating: r.puntuacion || 5,
             category: r.tipo || 'Sin categoría',
             image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
@@ -244,8 +244,11 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (recipeToEdit?.createdByUser && user?.id) {
         console.log('✅ Validación pasada: receta creada por usuario y usuario autenticado');
-      const camposModificados: any = {};
+        
+        // Construir camposModificados
+        const camposModificados: any = {};
 
+        // Campos básicos - incluir solo si cambiaron
       if (updated.title && updated.title !== recipeToEdit.title) {
         camposModificados.nombre = updated.title;
       }
@@ -255,14 +258,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       if (updated.image && typeof updated.image === 'object' && 'uri' in updated.image && 
           updated.image.uri !== (recipeToEdit.image && typeof recipeToEdit.image === 'object' && 'uri' in recipeToEdit.image ? recipeToEdit.image.uri : '')) {
         camposModificados.imagen = updated.image.uri;
-      }
-      // Agregar fechaCreacion solo si existe y es válida
-      if (recipeToEdit.createdAt && !isNaN(recipeToEdit.createdAt)) {
-        const fecha = new Date(recipeToEdit.createdAt).toISOString().split('T')[0];
-        // Solo agregar si la fecha es válida
-        if (fecha !== 'Invalid Date' && fecha !== '1970-01-01') {
-          camposModificados.fechaCreacion = fecha;
-        }
       }
       if (
         typeof updated.servings === 'number' &&
@@ -276,22 +271,31 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       ) {
         camposModificados.tipoId = updated.categoryId;
       }
-      if (
-        updated.ingredients &&
-        updated.ingredients.length >= 0
-      ) {
+
+      // Fecha de creación - incluir siempre si es válida
+      if (recipeToEdit.createdAt && !isNaN(recipeToEdit.createdAt)) {
+        const fecha = new Date(recipeToEdit.createdAt).toISOString().split('T')[0];
+        if (fecha !== 'Invalid Date' && fecha !== '1970-01-01') {
+          camposModificados.fechaCreacion = fecha;
+        }
+      } else {
+        // Si no hay fecha válida, usar la fecha actual
+        camposModificados.fechaCreacion = new Date().toISOString().split('T')[0];
+      }
+      
+      // Ingredientes - SIEMPRE incluir si están presentes en updated (sin comparar)
+      if (updated.ingredients && Array.isArray(updated.ingredients)) {
         console.log('🥕 Actualizando ingredientes:', updated.ingredients);
         camposModificados.ingredientes = updated.ingredients.map((i) => ({
-          idIngrediente: i.id || 1, // Ajustá esto si manejás IDs reales
-          cantidad: i.quantity,
+          idIngrediente: i.id || 1,
+          cantidad: i.quantity || 0,
           unidad: i.unit || 'gramos',
         }));
         console.log('🥕 Ingredientes mapeados:', camposModificados.ingredientes);
       }
-      if (
-        updated.steps &&
-        updated.steps.length >= 0
-      ) {
+      
+      // Pasos - SIEMPRE incluir si están presentes en updated (sin comparar)
+      if (updated.steps && Array.isArray(updated.steps)) {
         console.log('📝 Actualizando pasos:', updated.steps);
         camposModificados.pasos = updated.steps.map((s) => ({
           descripcion: s.description || s.text || '',
@@ -566,7 +570,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         const mappedRecipes = json.data.map((r: any): Recipe => ({
           id: r.idReceta,
           title: r.nombre,
-          author: r.usuario || 'Desconocido',
+          author: user?.username || user?.email || 'Usuario', // Usar el usuario autenticado
           rating: r.puntuacion || 5,
           category: r.tipo || 'Sin categoría',
           image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
