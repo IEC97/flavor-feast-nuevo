@@ -233,7 +233,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         categoryId: updated.categoryId,
       });
       
-      // NUEVO: Forzar actualización del estado antes de verificar permisos
+      // NUEVO: Forzar actualización del estado de recetas del usuario
       console.log('🔄 Forzando actualización de estado de recetas del usuario...');
       const updatedRecipes = await refreshUserRecipesStatus();
       
@@ -321,14 +321,25 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('🥕 Ingredientes mapeados:', camposModificados.ingredientes);
         }
         
-        // Pasos - SIEMPRE incluir si están presentes en updated
+        // Pasos - VOLVER A INCLUIR para probar con logging detallado
         if (updated.steps && Array.isArray(updated.steps)) {
           console.log('📝 Actualizando pasos:', updated.steps);
-          camposModificados.pasos = updated.steps.map((s) => ({
+          console.log('📝 Estructura de cada paso:');
+          updated.steps.forEach((s, index) => {
+            console.log(`  Paso ${index + 1}:`, {
+              description: s.description,
+              text: s.text,
+              hasImage: !!(s.image && typeof s.image === 'object' && 'uri' in s.image),
+              imageUri: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : null
+            });
+          });
+          
+          camposModificados.pasos = updated.steps.map((s, index) => ({
             descripcion: s.description || s.text || '',
             multimedia: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : '',
           }));
-          console.log('📝 Pasos mapeados:', camposModificados.pasos);
+          console.log('📝 Pasos mapeados para backend:', camposModificados.pasos);
+          console.log('🚨 ENVIANDO PASOS - verificar si el backend duplica la receta');
         }
 
         // Si no hay cambios, no mandamos nada
@@ -385,12 +396,16 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           
           if (json.status >= 200 && json.status < 300) {
             console.log('✅ Receta actualizada exitosamente');
+            
             // NUEVO: Verificar si se devolvió un ID diferente (indicaría duplicación)
             if (json.data && json.data.idReceta && json.data.idReceta.toString() !== id) {
               console.warn('⚠️ ADVERTENCIA: El backend devolvió un ID diferente!');
               console.warn('📋 ID original:', id);
               console.warn('📋 ID devuelto:', json.data.idReceta);
               console.warn('🚨 Esto indica que se creó una nueva receta en lugar de actualizar');
+              console.warn('💡 POSIBLE SOLUCIÓN: El backend tiene un bug al actualizar pasos');
+            } else {
+              console.log('✅ ID correcto devuelto - no hubo duplicación');
             }
           } else {
             console.error('❌ Error en la actualización:', json.message);
