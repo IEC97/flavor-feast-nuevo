@@ -1,6 +1,6 @@
 // ✅ context/RecipeContext.tsx - CORREGIDO
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Recipe } from '../types';
+import { Recipe, AvailableIngredient } from '../types';
 import { API_BASE_URL } from '../constants'; 
 import { useUserContext } from './UserContext';
 
@@ -21,6 +21,7 @@ type RecipeContextType = {
   getRecipeIngredients: (recipeId: string) => Promise<any[]>;
   getRecipeSteps: (recipeId: string) => Promise<any[]>;
   getRecipeDetails: (recipeId: string) => Promise<Recipe | null>;
+  getAvailableIngredients: () => Promise<AvailableIngredient[]>;
 };
 
 const RecipeContext = createContext<RecipeContextType | undefined>(undefined);
@@ -120,7 +121,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       tipoId: recipe.categoryId,
       porciones: recipe.servings || 1, // Valor por defecto si no hay porciones
       ingredientes: recipe.ingredients.map(i => ({
-        nombre: i.name,
+        idIngrediente: i.id || 1, // Usa el ID del ingrediente
         cantidad: i.quantity,
         unidad: i.unit || '', // Valor por defecto si no hay unidad
       })),
@@ -322,6 +323,30 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     return favorites.some((r) => r.id === id);
   };
 
+  const getAvailableIngredients = async (): Promise<AvailableIngredient[]> => {
+    try {
+      const url = `${API_BASE_URL}/ingredients`;
+      console.log('🔍 Fetching available ingredients from:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      console.log('📥 Available ingredients response:', json);
+      
+      if (json.status === 200 && Array.isArray(json.data)) {
+        const mappedIngredients = json.data.map((ing: any) => ({
+          id: ing.idIngrediente, // Usar idIngrediente de la respuesta
+          name: ing.nombre, // Usar nombre de la respuesta
+        }));
+        console.log('✅ Mapped available ingredients:', mappedIngredients);
+        return mappedIngredients;
+      }
+      console.log('⚠️ No available ingredients found in response');
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener ingredientes disponibles:', error);
+      return [];
+    }
+  };
+
   const getRecipeIngredients = async (recipeId: string): Promise<any[]> => {
     try {
       const url = `${API_BASE_URL}/recipes/${recipeId}/getRecipeIngredients`;
@@ -409,7 +434,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <RecipeContext.Provider
-      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, getRecipeIngredients, getRecipeSteps, getRecipeDetails }}
+      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients }}
     >
       {children}
     </RecipeContext.Provider>

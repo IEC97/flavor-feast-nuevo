@@ -7,6 +7,11 @@ export type Ingredient = {
   unit?: string;
 };
 
+export type AvailableIngredient = {
+  id: number;
+  name: string;
+};
+
 export type Step = {
   text?: string;
   description?: string;

@@ -14,7 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useRecipeContext } from '../context/RecipeContext';
 //import MyRecipesScreen from '../screens/MyRecipesScreen';
-import { Recipe, RootStackParamList } from '../types';
+import { Recipe, RootStackParamList, AvailableIngredient } from '../types';
 import { useUserContext } from '../context/UserContext'; // <-- Agrega este import
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,8 +22,31 @@ import { Image } from 'react-native';
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
+// Helper para convertir ingredientes del backend al formato del formulario
+const convertIngredientsToFormFormat = (ingredients: any[]) => {
+  return ingredients.map((ing, index) => ({
+    id: index + 1, // ID temporal para el formulario
+    ingredientId: ing.id || ing.idIngrediente || 1, // ID del ingrediente en la DB
+    quantity: ing.quantity || ing.cantidad || 0,
+    unit: ing.unit || ing.unidad || 'gramos',
+  }));
+};
+
+// Helper para convertir ingredientes del formulario al formato del Recipe
+const convertIngredientsToRecipeFormat = (formIngredients: any[], availableIngredients: AvailableIngredient[]) => {
+  return formIngredients.map(ing => {
+    const availableIng = availableIngredients.find(ai => ai.id === ing.ingredientId);
+    return {
+      id: ing.ingredientId,
+      name: availableIng?.name || 'Ingrediente desconocido',
+      quantity: ing.quantity,
+      unit: ing.unit,
+    };
+  });
+};
+
 const RecipeFormScreen = () => {
-  const { addRecipe, editRecipe, deleteRecipe, getRecipeDetails } = useRecipeContext();
+  const { addRecipe, editRecipe, deleteRecipe, getRecipeDetails, getAvailableIngredients } = useRecipeContext();
 
   const { user } = useUserContext(); // <-- Obtén el usuario autenticado
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -48,7 +71,8 @@ const RecipeFormScreen = () => {
   const [author, setAuthor] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState<{ text: string; image: any }[]>([]);
-  const [ingredients, setIngredients] = useState<{ name: string; quantity: number }[]>([]);
+  const [ingredients, setIngredients] = useState<{ id: number; ingredientId: number; quantity: number; unit: string }[]>([]);
+  const [availableIngredients, setAvailableIngredients] = useState<AvailableIngredient[]>([]);
   const [servings, setServings] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const categories = [
@@ -69,6 +93,19 @@ const RecipeFormScreen = () => {
     const timeout = setTimeout(() => setCheckingUser(false), 300);
     return () => clearTimeout(timeout);
   }, [user]);
+
+  // Cargar ingredientes disponibles
+  useEffect(() => {
+    const loadAvailableIngredients = async () => {
+      try {
+        const ingredients = await getAvailableIngredients();
+        setAvailableIngredients(ingredients);
+      } catch (error) {
+        console.error('Error al cargar ingredientes disponibles:', error);
+      }
+    };
+    loadAvailableIngredients();
+  }, [getAvailableIngredients]);
 
   
   useEffect(() => {
@@ -94,7 +131,7 @@ const RecipeFormScreen = () => {
               text: step.text || step.description || '',
               image: step.image
             })) || []);
-            setIngredients(completeRecipe.ingredients || editingRecipe.ingredients || []);
+            setIngredients(convertIngredientsToFormFormat(completeRecipe.ingredients || editingRecipe.ingredients || []));
             setServings((completeRecipe.servings || editingRecipe.servings || 1).toString());
             setCategoryId((completeRecipe.categoryId || editingRecipe.categoryId || '').toString());
           } else {
@@ -107,7 +144,7 @@ const RecipeFormScreen = () => {
               text: step.text || step.description || '',
               image: step.image
             })) || []);
-            setIngredients(editingRecipe.ingredients || []);
+            setIngredients(convertIngredientsToFormFormat(editingRecipe.ingredients || []));
             setServings((editingRecipe.servings || 1).toString());
             setCategoryId((editingRecipe.categoryId || '').toString());
           }
@@ -121,7 +158,7 @@ const RecipeFormScreen = () => {
             text: step.text || step.description || '',
             image: step.image
           })) || []);
-          setIngredients(editingRecipe.ingredients || []);
+          setIngredients(convertIngredientsToFormFormat(editingRecipe.ingredients || []));
           setServings((editingRecipe.servings || 1).toString());
           setCategoryId((editingRecipe.categoryId || '').toString());
         } finally {
@@ -204,7 +241,7 @@ const RecipeFormScreen = () => {
         return;
       }
 
-      if (ingredients.length === 0 || ingredients.some(i => !i.name || !i.quantity)) {
+      if (ingredients.length === 0 || ingredients.some(i => !i.ingredientId || !i.quantity)) {
         Alert.alert('Error', 'Debe ingresar al menos un ingrediente con cantidad.');
         return;
       }
@@ -223,7 +260,7 @@ const RecipeFormScreen = () => {
       image: imageUri ? { uri: imageUri } : require('../assets/placeholder.jpg'),
       //image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
       //image: { uri: imageUri },
-      ingredients,
+      ingredients: convertIngredientsToRecipeFormat(ingredients, availableIngredients),
       steps,
       createdByUser: true,
       servings: parseInt(servings, 10) || 1,
@@ -268,7 +305,7 @@ const RecipeFormScreen = () => {
         category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
         //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
         image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
-        ingredients,
+        ingredients: convertIngredientsToRecipeFormat(ingredients, availableIngredients),
         steps: steps.length > 0 ? steps : (editingRecipe?.steps || []),
         createdByUser: true,
         servings: parseInt(servings, 10),
@@ -277,18 +314,27 @@ const RecipeFormScreen = () => {
     });
   };
 
-  const updateIngredient = (index: number, field: 'name' | 'quantity', value: string) => {
+  const updateIngredient = (index: number, field: 'ingredientId' | 'quantity' | 'unit', value: string) => {
     const updated = [...ingredients];
     if (field === 'quantity') {
       updated[index] = { ...updated[index], quantity: parseFloat(value) || 0 };
-    } else {
-      updated[index] = { ...updated[index], name: value };
+    } else if (field === 'ingredientId') {
+      updated[index] = { ...updated[index], ingredientId: parseInt(value) || 1 };
+    } else if (field === 'unit') {
+      updated[index] = { ...updated[index], unit: value };
     }
     setIngredients(updated);
   };
 
   const addIngredient = () => {
-    setIngredients([...ingredients, { name: '', quantity: 0 }]);
+    const newId = ingredients.length + 1;
+    const defaultIngredientId = availableIngredients.length > 0 ? availableIngredients[0].id : 1;
+    setIngredients([...ingredients, { 
+      id: newId, 
+      ingredientId: defaultIngredientId, 
+      quantity: 0, 
+      unit: 'gramos' 
+    }]);
   };
 
   return (
@@ -342,29 +388,108 @@ const RecipeFormScreen = () => {
         )}
       </Picker>
 
-      <Text style={styles.label}>Ingredientes (con cantidad en gramos) *</Text>
-      {ingredients.map((ingredient, index) => 
+      <Text style={styles.label}>Ingredientes *</Text>
+      {availableIngredients.length === 0 ? (
         React.createElement(View, {
-          key: index,
-          style: { flexDirection: 'row', gap: 6, marginBottom: 8 }
-        }, [
-          React.createElement(TextInput, {
-            key: 'name',
-            placeholder: "Ingrediente",
-            style: [styles.input, { flex: 2 }],
-            value: ingredient.name,
-            onChangeText: (text: string) => updateIngredient(index, 'name', text)
-          }),
-          React.createElement(TextInput, {
-            key: 'quantity',
-            placeholder: "Cantidad",
-            style: [styles.input, { flex: 1 }],
-            keyboardType: "numeric",
-            value: ingredient.quantity.toString(),
-            onChangeText: (text: string) => updateIngredient(index, 'quantity', text)
-          })
-        ])
-      )}
+          style: { padding: 16, alignItems: 'center' }
+        }, React.createElement(Text, {
+          style: { color: '#666' }
+        }, 'Cargando ingredientes disponibles...'))
+      ) : (
+        ingredients.map((ingredient, index) => {
+          const selectedIngredient = availableIngredients.find(ai => ai.id === ingredient.ingredientId);
+          return React.createElement(View, {
+            key: index,
+            style: { marginBottom: 12, padding: 8, backgroundColor: '#f8f8f8', borderRadius: 8 }
+          }, [
+          React.createElement(Text, {
+            key: 'title',
+            style: { fontWeight: 'bold', marginBottom: 8, fontSize: 14 }
+          }, `Ingrediente ${index + 1}`),
+          
+          React.createElement(Text, {
+            key: 'selectLabel',
+            style: { marginBottom: 4, fontWeight: '500' }
+          }, 'Seleccionar ingrediente:'),
+          
+          React.createElement(Picker, {
+            key: 'picker',
+            selectedValue: (ingredient.ingredientId || 1).toString(),
+            onValueChange: (value: unknown) => updateIngredient(index, 'ingredientId', value as string),
+            style: [styles.input, { marginBottom: 8 }]
+          }, [
+            React.createElement(Picker.Item, {
+              key: 'placeholder',
+              label: "Selecciona un ingrediente",
+              value: ""
+            }),
+            ...availableIngredients.map((availableIng) => 
+              React.createElement(Picker.Item, {
+                key: availableIng.id,
+                label: availableIng.name,
+                value: availableIng.id.toString()
+              })
+            )
+          ]),
+          
+          React.createElement(View, {
+            key: 'quantityRow',
+            style: { flexDirection: 'row', gap: 8 }
+          }, [
+            React.createElement(View, {
+              key: 'quantityContainer',
+              style: { flex: 1 }
+            }, [
+              React.createElement(Text, {
+                key: 'quantityLabel',
+                style: { marginBottom: 4, fontWeight: '500' }
+              }, 'Cantidad:'),
+              React.createElement(TextInput, {
+                key: 'quantity',
+                placeholder: "Cantidad",
+                style: styles.input,
+                keyboardType: "numeric",
+                value: ingredient.quantity.toString(),
+                onChangeText: (text: string) => updateIngredient(index, 'quantity', text)
+              })
+            ]),
+            
+            React.createElement(View, {
+              key: 'unitContainer',
+              style: { flex: 1 }
+            }, [
+              React.createElement(Text, {
+                key: 'unitLabel',
+                style: { marginBottom: 4, fontWeight: '500' }
+              }, 'Unidad:'),
+              React.createElement(TextInput, {
+                key: 'unit',
+                placeholder: "ej: gramos, ml, unidades",
+                style: styles.input,
+                value: ingredient.unit,
+                onChangeText: (text: string) => updateIngredient(index, 'unit', text)
+              })
+            ])
+          ]),
+          
+          React.createElement(TouchableOpacity, {
+            key: 'removeButton',
+            onPress: () => {
+              const updated = ingredients.filter((_, i) => i !== index);
+              setIngredients(updated);
+            },
+            style: { 
+              backgroundColor: '#dc3545', 
+              padding: 8, 
+              borderRadius: 4, 
+              alignItems: 'center',
+              marginTop: 8
+            }
+          }, React.createElement(Text, {
+            style: { color: 'white', fontSize: 12 }
+          }, 'Eliminar ingrediente'))
+        ]);
+      }))}
       
 
       <TouchableOpacity onPress={addIngredient}>
