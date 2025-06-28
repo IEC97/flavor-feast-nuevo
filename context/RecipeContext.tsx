@@ -23,6 +23,7 @@ type RecipeContextType = {
   getRecipeDetails: (recipeId: string) => Promise<Recipe | null>;
   getAvailableIngredients: () => Promise<AvailableIngredient[]>;
   getUserRecipes: (userId: string) => Promise<Recipe[]>;
+  refreshUserRecipesStatus: () => Promise<Recipe[]>;
 };
 
 const RecipeContext = createContext<RecipeContextType | undefined>(undefined);
@@ -78,7 +79,8 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           }));
 
           console.log('📥 Recetas cargadas desde backend:', mapped.length);
-          console.log('📥 IDs de recetas cargadas:', mapped.map((r: Recipe) => ({ id: r.id, title: r.title, tipo: typeof r.id })));
+          console.log('📥 IDs de recetas cargadas:', mapped.map((r: Recipe) => ({ id: r.id, title: r.title, tipo: typeof r.id, userId: r.userId })));
+          console.log('👤 Usuario actual:', user?.id, 'tipo:', typeof user?.id);
           setRecipes(mapped);
         } else {
           console.error('Error al cargar recetas:', json.message);
@@ -94,12 +96,58 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   // Actualizar createdByUser cuando el usuario esté disponible
   useEffect(() => {
     if (user?.id) {
-      setRecipes(prev => prev.map(recipe => ({
-        ...recipe,
-        createdByUser: recipe.userId === parseInt(user.id, 10)
-      })));
+      console.log('🔄 Actualizando createdByUser para usuario ID:', user.id);
+      
+      // Cargar recetas del usuario y marcarlas correctamente
+      const loadUserRecipesAndMark = async () => {
+        try {
+          // Obtener las recetas específicas del usuario
+          const userRecipes = await getUserRecipes(user.id);
+          console.log('📋 Recetas del usuario obtenidas en useEffect:', userRecipes.length, userRecipes.map(r => r.id));
+          
+          // Actualizar el estado de recetas
+          setRecipes(prev => {
+            // Crear un mapa de las recetas del usuario para búsqueda rápida
+            const userRecipeIds = new Set(userRecipes.map(r => r.id.toString()));
+            console.log('🎯 IDs de recetas del usuario:', Array.from(userRecipeIds));
+            
+            // Actualizar recetas existentes y agregar las que falten
+            const existingRecipeIds = new Set(prev.map(r => r.id.toString()));
+            const recipesToAdd = userRecipes.filter(ur => !existingRecipeIds.has(ur.id.toString()));
+            
+            const updated = prev.map(recipe => {
+              const recipeIdStr = recipe.id.toString();
+              const isCreatedByUser = userRecipeIds.has(recipeIdStr);
+              if (recipe.id === "9" || recipeIdStr === "9") {
+                console.log('� Receta ID 9 DEBUG:');
+                console.log('  - recipe.id:', recipe.id, '(tipo:', typeof recipe.id, ')');
+                console.log('  - recipeIdStr:', recipeIdStr);
+                console.log('  - userRecipeIds:', Array.from(userRecipeIds));
+                console.log('  - isCreatedByUser:', isCreatedByUser);
+              }
+              return {
+                ...recipe,
+                createdByUser: isCreatedByUser,
+                userId: isCreatedByUser ? parseInt(user.id, 10) : recipe.userId
+              };
+            });
+            
+            // Agregar recetas del usuario que no estén en la lista general
+            const finalRecipes = [...updated, ...recipesToAdd];
+            
+            const userRecipesMarked = finalRecipes.filter(r => r.createdByUser);
+            console.log('✅ Recetas marcadas como del usuario:', userRecipesMarked.length, userRecipesMarked.map(r => ({ id: r.id, title: r.title })));
+            
+            return finalRecipes;
+          });
+        } catch (error) {
+          console.error('❌ Error al cargar y marcar recetas del usuario:', error);
+        }
+      };
+      
+      loadUserRecipesAndMark();
     }
-  }, [user?.id]);
+  }, [user?.id, recipes.length]); // Add recipes.length as dependency
 
   const addRecipe = async (recipe: Recipe) => {
     console.log('🍳 Datos de la receta recibida:', {
@@ -185,16 +233,20 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         categoryId: updated.categoryId,
       });
       
-      // DEBUG: Mostrar todas las recetas disponibles
-      console.log('🔍 Total recetas en estado:', recipes.length);
-      console.log('🔍 IDs de recetas disponibles:', recipes.map(r => ({ id: r.id, title: r.title, createdByUser: r.createdByUser })));
+      // NUEVO: Forzar actualización del estado antes de verificar permisos
+      console.log('🔄 Forzando actualización de estado de recetas del usuario...');
+      const updatedRecipes = await refreshUserRecipesStatus();
+      
+      // DEBUG: Mostrar todas las recetas disponibles DESPUÉS de la actualización
+      console.log('🔍 Total recetas en estado (después de refresh):', updatedRecipes.length);
+      console.log('🔍 IDs de recetas disponibles (después de refresh):', updatedRecipes.map((r: Recipe) => ({ id: r.id, title: r.title, createdByUser: r.createdByUser })));
       
       setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
 
-      let recipeToEdit = recipes.find((r) => r.id === id);
-      console.log('📋 Receta encontrada para editar:', recipeToEdit?.title);
+      let recipeToEdit = updatedRecipes.find((r) => r.id === id);
+      console.log('📋 Receta encontrada para editar (después de refresh):', recipeToEdit?.title);
       console.log('👤 Usuario autenticado:', user?.id);
-      console.log('🔐 Creada por usuario:', recipeToEdit?.createdByUser);
+      console.log('🔐 Creada por usuario (después de refresh):', recipeToEdit?.createdByUser);
       
       // Si no se encuentra la receta, intentar cargarla desde getUserRecipes
       if (!recipeToEdit && user?.id) {
@@ -295,7 +347,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
         try {
           // ARREGLO: Usar query parameters correctos como en Postman
-          const url = `${API_BASE_URL}/recipes/${id}?method=PUT`;
+          const url = `${API_BASE_URL}/recipes/${id}&method=PUT`;
           console.log('🔄 Enviando PUT a:', url);
           console.log('📦 Body:', JSON.stringify(body, null, 2));
           
@@ -515,6 +567,12 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           userId: parseInt(userId, 10),
           description: r.descripcion,
         }));
+        
+        console.log('🔍 getUserRecipes mapped results:');
+        mappedRecipes.forEach((recipe: Recipe) => {
+          console.log(`  - ID: ${recipe.id} (${typeof recipe.id}), title: ${recipe.title}, createdByUser: ${recipe.createdByUser}`);
+        });
+        
         return mappedRecipes;
       }
       return [];
@@ -524,9 +582,55 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Función para forzar la actualización de createdByUser
+  const refreshUserRecipesStatus = async (): Promise<Recipe[]> => {
+    if (!user?.id) return recipes;
+    
+    console.log('🔄 FORCE REFRESH - Actualizando estado de recetas del usuario');
+    try {
+      const userRecipes = await getUserRecipes(user.id);
+      console.log('🔄 FORCE REFRESH - Recetas del usuario:', userRecipes.map(r => r.id));
+      
+      return new Promise((resolve) => {
+        setRecipes(prev => {
+          const userRecipeIds = new Set(userRecipes.map(r => r.id.toString()));
+          
+          const updated = prev.map(recipe => {
+            const isCreatedByUser = userRecipeIds.has(recipe.id.toString());
+            if (recipe.id === "9") {
+              console.log('🔄 FORCE REFRESH - Receta 9:', {
+                before: recipe.createdByUser,
+                after: isCreatedByUser,
+                inUserRecipes: userRecipeIds.has("9")
+              });
+            }
+            return {
+              ...recipe,
+              createdByUser: isCreatedByUser,
+              userId: isCreatedByUser ? parseInt(user.id, 10) : recipe.userId
+            };
+          });
+          
+          // Agregar recetas del usuario que falten
+          const existingIds = new Set(prev.map(r => r.id.toString()));
+          const toAdd = userRecipes.filter(ur => !existingIds.has(ur.id.toString()));
+          
+          const final = [...updated, ...toAdd];
+          console.log('🔄 FORCE REFRESH - Recetas marcadas como del usuario:', final.filter(r => r.createdByUser).map(r => r.id));
+          
+          resolve(final);
+          return final;
+        });
+      });
+    } catch (error) {
+      console.error('❌ Error en refreshUserRecipesStatus:', error);
+      return recipes;
+    }
+  };
+
   return (
     <RecipeContext.Provider
-      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes }}
+      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes, refreshUserRecipesStatus }}
     >
       {children}
     </RecipeContext.Provider>
