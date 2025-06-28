@@ -1,7 +1,6 @@
-
 // ✅ context/RecipeContext.tsx - CORREGIDO
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Recipe } from '../types';
+import { Recipe, AvailableIngredient } from '../types';
 import { API_BASE_URL } from '../constants'; 
 import { useUserContext } from './UserContext';
 
@@ -19,6 +18,11 @@ type RecipeContextType = {
   deleteRecipe: (id: string) => void;
   toggleFavorite: (recipe: Recipe) => void;
   isFavorite: (id: string) => boolean;
+  getRecipeIngredients: (recipeId: string) => Promise<any[]>;
+  getRecipeSteps: (recipeId: string) => Promise<any[]>;
+  getRecipeDetails: (recipeId: string) => Promise<Recipe | null>;
+  getAvailableIngredients: () => Promise<AvailableIngredient[]>;
+  getUserRecipes: (userId: string) => Promise<Recipe[]>;
 };
 
 const RecipeContext = createContext<RecipeContextType | undefined>(undefined);
@@ -53,7 +57,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           const mapped = json.data.map((r: any): Recipe => ({
             id: r.idReceta,
             title: r.nombre,
-            author: r.usuario || 'Desconocido',
+            author: r.usuario || (r.idUsuario === user?.id ? (user?.username || user?.email) : 'Desconocido'),
             rating: r.puntuacion || 5,
             category: r.tipo || 'Sin categoría',
             image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
@@ -66,8 +70,11 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
               description: p.descripcion,
               image: p.multimedia ? { uri: p.multimedia } : null,
             })) || [],
-            createdByUser: false,
+            createdByUser: false, // Se actualizará más tarde cuando tengamos el usuario
             createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),
+            categoryId: r.tipoId,
+            servings: r.porciones,
+            userId: r.idUsuario, // Guardamos el ID del usuario para comparar después
           }));
 
           setRecipes(mapped);
@@ -81,6 +88,16 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
     fetchRecipes();
   }, []);
+
+  // Actualizar createdByUser cuando el usuario esté disponible
+  useEffect(() => {
+    if (user?.id) {
+      setRecipes(prev => prev.map(recipe => ({
+        ...recipe,
+        createdByUser: recipe.userId === parseInt(user.id, 10)
+      })));
+    }
+  }, [user?.id]);
 
   /* const addRecipe = (recipe: Recipe) => {
     setRecipes((prev) => [...prev, { ...recipe, createdByUser: true }]);
@@ -108,7 +125,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Transforma el objeto al formato esperado por el backend
     const backendRecipe = {
-      idUsuario: user.id,
+      idUsuario: parseInt(user.id, 10),
       nombre: recipe.title,
       descripcion: recipe.description || '', // Valor por defecto si no hay descripción
       // Si hay imagen seleccionada, usa su URL; si no, usa una URL de placeholder
@@ -118,7 +135,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       tipoId: recipe.categoryId,
       porciones: recipe.servings || 1, // Valor por defecto si no hay porciones
       ingredientes: recipe.ingredients.map(i => ({
-        nombre: i.name,
+        idIngrediente: i.id || 1, // Usa el ID del ingrediente
         cantidad: i.quantity,
         unidad: i.unit || '', // Valor por defecto si no hay unidad
       })),
@@ -205,12 +222,33 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   }; */
 
   const editRecipe = async (id: string, updated: Partial<Recipe>) => {
-    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+    try {
+      console.log('🔧 Iniciando editRecipe para ID:', id);
+      console.log('📝 Datos a actualizar:', {
+        title: updated.title,
+        description: updated.description,
+        ingredientsCount: updated.ingredients?.length || 0,
+        stepsCount: updated.steps?.length || 0,
+        servings: updated.servings,
+        categoryId: updated.categoryId,
+      });
+      console.log('🥕 Ingredientes detallados:', updated.ingredients);
+      console.log('📝 Pasos detallados:', updated.steps);
+      
+      setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
 
-    const recipeToEdit = recipes.find((r) => r.id === id);
-    if (recipeToEdit?.createdByUser && user?.id) {
-      const camposModificados: any = {};
+      const recipeToEdit = recipes.find((r) => r.id === id);
+      console.log('📋 Receta encontrada para editar:', recipeToEdit?.title);
+      console.log('👤 Usuario autenticado:', user?.id);
+      console.log('🔐 Creada por usuario:', recipeToEdit?.createdByUser);
+      
+      if (recipeToEdit?.createdByUser && user?.id) {
+        console.log('✅ Validación pasada: receta creada por usuario y usuario autenticado');
+        
+        // Construir camposModificados
+        const camposModificados: any = {};
 
+        // Campos básicos - incluir solo si cambiaron
       if (updated.title && updated.title !== recipeToEdit.title) {
         camposModificados.nombre = updated.title;
       }
@@ -233,51 +271,144 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       ) {
         camposModificados.tipoId = updated.categoryId;
       }
-      if (
-        updated.ingredients &&
-        JSON.stringify(updated.ingredients) !== JSON.stringify(recipeToEdit.ingredients)
-      ) {
-        camposModificados.ingredientes = updated.ingredients.map((i) => ({
-          idIngrediente: i.id || 1, // Ajustá esto si manejás IDs reales
-          cantidad: i.quantity,
-          unidad: i.unit,
-        }));
+
+      // Fecha de creación - incluir siempre si es válida
+      if (recipeToEdit.createdAt && !isNaN(recipeToEdit.createdAt)) {
+        const fecha = new Date(recipeToEdit.createdAt).toISOString().split('T')[0];
+        if (fecha !== 'Invalid Date' && fecha !== '1970-01-01') {
+          camposModificados.fechaCreacion = fecha;
+        }
+      } else {
+        // Si no hay fecha válida, usar la fecha actual
+        camposModificados.fechaCreacion = new Date().toISOString().split('T')[0];
       }
-      if (
-        updated.steps &&
-        JSON.stringify(updated.steps) !== JSON.stringify(recipeToEdit.steps)
-      ) {
+      
+      // Ingredientes - SIEMPRE incluir si están presentes en updated (sin comparar)
+      if (updated.ingredients && Array.isArray(updated.ingredients)) {
+        console.log('🥕 Actualizando ingredientes:', updated.ingredients);
+        camposModificados.ingredientes = updated.ingredients.map((i) => ({
+          idIngrediente: i.id || 1,
+          cantidad: i.quantity || 0,
+          unidad: i.unit || 'gramos',
+        }));
+        console.log('🥕 Ingredientes mapeados:', camposModificados.ingredientes);
+      }
+      
+      // Pasos - SIEMPRE incluir si están presentes en updated (sin comparar)
+      if (updated.steps && Array.isArray(updated.steps)) {
+        console.log('📝 Actualizando pasos:', updated.steps);
         camposModificados.pasos = updated.steps.map((s) => ({
           descripcion: s.description || s.text || '',
           multimedia: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : '',
         }));
+        console.log('📝 Pasos mapeados:', camposModificados.pasos);
       }
 
       // Si no hay cambios, no mandamos nada
       if (Object.keys(camposModificados).length === 0) {
-        console.log('No hay cambios para actualizar');
+        console.log('⚠️ No hay cambios para actualizar');
         return;
       }
 
+      console.log('📦 Campos modificados finales:', camposModificados);
+      console.log('📊 Total campos a actualizar:', Object.keys(camposModificados).length);
+      console.log('🥕 ¿Tiene ingredientes?', !!camposModificados.ingredientes, 'cantidad:', camposModificados.ingredientes?.length || 0);
+      console.log('📝 ¿Tiene pasos?', !!camposModificados.pasos, 'cantidad:', camposModificados.pasos?.length || 0);
+
       const body = {
-        idUsuario: user.id,
-        id,
+        id: id.toString(), // Asegurar que sea string como en Postman
+        idUsuario: parseInt(user.id, 10),
         camposModificados,
       };
 
       try {
-        const res = await fetch(`${API_BASE_URL}/recipes/${id}&method=PUT`, {
-          method: 'PUT',
+        // Construir URL correcta con los query parameters
+        const url = `${API_BASE_URL}/recipes/${id}&method=PUT`;
+        console.log('🔄 Enviando PUT a:', url);
+        console.log('📦 Body:', JSON.stringify(body, null, 2));
+        
+        const res = await fetch(url, {
+          method: 'POST', // POST con query parameters como en Postman
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        const json = await res.json();
-        console.log('📝 Respuesta actualización:', json);
+        
+        // Verificar si la respuesta es exitosa
+        if (!res.ok) {
+          console.error('❌ Respuesta no exitosa:', res.status, res.statusText);
+          const errorText = await res.text();
+          console.error('❌ Texto de error:', errorText);
+          return;
+        }
+        
+        // Verificar el tipo de contenido
+        const contentType = res.headers.get('content-type');
+        console.log('📋 Content-Type:', contentType);
+        
+        let json;
+        if (contentType && contentType.includes('application/json')) {
+          json = await res.json();
+        } else {
+          const responseText = await res.text();
+          console.log('� Respuesta como texto:', responseText);
+          // Intentar parsear manualmente si es posible
+          try {
+            json = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('❌ No se pudo parsear como JSON:', parseError);
+            console.log('⚠️ La actualización podría haberse completado exitosamente en el backend');
+            // Continuar y refrescar los datos desde el backend
+            const updatedRecipeDetails = await getRecipeDetails(id);
+            if (updatedRecipeDetails) {
+              setRecipes(prev => prev.map(r => 
+                r.id === id ? updatedRecipeDetails : r
+              ));
+              console.log('🔄 Estado local actualizado tras error de parseo');
+            }
+            return;
+          }
+        }
+        
+        console.log('�📝 Respuesta actualización:', json);
+        
+        if (json.status >= 200 && json.status < 300) {
+          console.log('✅ Receta actualizada exitosamente');
+        } else {
+          console.error('❌ Error en la actualización:', json.message);
+        }
+        
+        // Opcional: refrescar la receta desde el backend para asegurar sincronización
+        const updatedRecipeDetails = await getRecipeDetails(id);
+        if (updatedRecipeDetails) {
+          // Actualizar el estado local con los datos más recientes del backend
+          setRecipes(prev => prev.map(r => 
+            r.id === id ? updatedRecipeDetails : r
+          ));
+          console.log('🔄 Estado local actualizado con datos del backend');
+        }
       } catch (error) {
-        console.error('Error actualizando receta en backend:', error);
+        console.error('❌ Error actualizando receta en backend:', error);
+        console.log('⚠️ Intentando refrescar datos desde el backend...');
+        // Aún así, intentar refrescar los datos por si la actualización fue exitosa
+        try {
+          const updatedRecipeDetails = await getRecipeDetails(id);
+          if (updatedRecipeDetails) {
+            setRecipes(prev => prev.map(r => 
+              r.id === id ? updatedRecipeDetails : r
+            ));
+            console.log('🔄 Estado local actualizado después del error');
+          }
+        } catch (refreshError) {
+          console.error('❌ Error al refrescar datos:', refreshError);
+        }
       }
+    } else {
+      console.log('⚠️ No se puede editar: receta no creada por usuario o usuario no autenticado');
     }
-  };
+  } catch (error) {
+    console.error('❌ Error general en editRecipe:', error);
+  }
+};
 
 
 
@@ -320,9 +451,163 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     return favorites.some((r) => r.id === id);
   };
 
+  const getAvailableIngredients = async (): Promise<AvailableIngredient[]> => {
+    try {
+      const url = `${API_BASE_URL}/ingredients`;
+      console.log('🔍 Fetching available ingredients from:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      
+      if (json.status === 200 && Array.isArray(json.data)) {
+        const mappedIngredients = json.data.map((ing: any) => ({
+          id: ing.idIngrediente, // Usar idIngrediente de la respuesta
+          name: ing.nombre, // Usar nombre de la respuesta
+        }));
+        console.log('✅ Mapped available ingredients:', mappedIngredients);
+        return mappedIngredients;
+      }
+      console.log('⚠️ No available ingredients found in response');
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener ingredientes disponibles:', error);
+      return [];
+    }
+  };
+
+  const getRecipeIngredients = async (recipeId: string): Promise<any[]> => {
+    try {
+      const url = `${API_BASE_URL}/recipes/${recipeId}/getRecipeIngredients`;
+      console.log('🔍 Fetching ingredients from:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      console.log('📥 Ingredients response:', json);
+      
+      if (json.status === 200 && json.data?.ingredientes) {
+        const mappedIngredients = json.data.ingredientes.map((ing: any) => ({
+          id: ing.id,
+          name: ing.nombre,
+          quantity: ing.cantidad,
+          unit: ing.unidad,
+        }));
+        console.log('✅ Mapped ingredients:', mappedIngredients);
+        return mappedIngredients;
+      }
+      console.log('⚠️ No ingredients found in response');
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener ingredientes:', error);
+      return [];
+    }
+  };
+
+  const getRecipeSteps = async (recipeId: string): Promise<any[]> => {
+    try {
+      const url = `${API_BASE_URL}/recipes/${recipeId}/steps`;
+      console.log('🔍 Fetching steps from:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      console.log('📥 Steps response:', json);
+      
+      if (json.status === 200 && json.data?.pasos) {
+        const mappedSteps = json.data.pasos.map((paso: any) => ({
+          text: paso.descripcion,
+          description: paso.descripcion,
+          order: paso.numero,
+          image: paso.multimedia ? { uri: paso.multimedia } : null,
+        }));
+        console.log('✅ Mapped steps:', mappedSteps);
+        return mappedSteps;
+      }
+      console.log('⚠️ No steps found in response');
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener pasos:', error);
+      return [];
+    }
+  };
+  const getRecipeDetails = async (recipeId: string): Promise<Recipe | null> => {
+    try {
+      console.log('🔍 Getting recipe details for ID:', recipeId);
+      const [ingredients, steps] = await Promise.all([
+        getRecipeIngredients(recipeId),
+        getRecipeSteps(recipeId)
+      ]);
+
+      const baseRecipe = recipes.find(r => r.id === recipeId);
+      console.log('📋 Base recipe found:', baseRecipe?.title || 'Not found');
+      console.log('🥕 Ingredients loaded:', ingredients?.length || 0);
+      console.log('📝 Steps loaded:', steps?.length || 0);
+      
+      if (baseRecipe) {
+        const completeRecipe = {
+          ...baseRecipe,
+          ingredients,
+          steps
+        };
+        console.log('✅ Complete recipe prepared:', {
+          title: completeRecipe.title,
+          ingredientsCount: completeRecipe.ingredients?.length || 0,
+          stepsCount: completeRecipe.steps?.length || 0
+        });
+        return completeRecipe;
+      }
+      console.log('❌ Base recipe not found for ID:', recipeId);
+      return null;
+    } catch (error) {
+      console.error('❌ Error al obtener detalles de receta:', error);
+      return null;
+    }
+  };
+
+  const getUserRecipes = async (userId: string): Promise<Recipe[]> => {
+    try {
+      const url = `${API_BASE_URL}/users/${userId}/recipes`;
+      console.log('👤 Fetching user recipes from:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      console.log('📥 User recipes response:', json);
+      
+      if (json.status === 200 && Array.isArray(json.data)) {
+        const mappedRecipes = json.data.map((r: any): Recipe => ({
+          id: r.idReceta,
+          title: r.nombre,
+          author: user?.username || user?.email || 'Usuario', // Usar el usuario autenticado
+          rating: r.puntuacion || 5,
+          category: r.tipo || 'Sin categoría',
+          image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
+          ingredients: r.ingredientes?.map((i: any) => ({
+            id: i.idIngrediente,
+            name: i.nombre,
+            quantity: i.cantidad,
+            unit: i.unidad,
+          })) || [],
+          steps: r.pasos?.map((p: any) => ({
+            text: p.descripcion,
+            description: p.descripcion,
+            order: p.numero,
+            image: p.multimedia ? { uri: p.multimedia } : null,
+          })) || [],
+          createdByUser: true, // Estas son las recetas del usuario
+          createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),
+          categoryId: r.tipoId,
+          servings: r.porciones,
+          userId: parseInt(userId, 10),
+          description: r.descripcion,
+        }));
+        console.log('✅ Mapped user recipes:', mappedRecipes.length, 'recipes');
+        return mappedRecipes;
+      }
+      console.log('⚠️ No user recipes found in response');
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener recetas del usuario:', error);
+      return [];
+    }
+  };
+
   return (
     <RecipeContext.Provider
-      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite }}
+      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes }}
     >
       {children}
     </RecipeContext.Provider>

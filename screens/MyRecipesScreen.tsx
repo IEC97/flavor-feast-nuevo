@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,26 +6,76 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
   //Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons'; // Agrega este import
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, Recipe } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import { useUserContext } from '../context/UserContext';
 //import { useFilterContext } from '../context/FilterContext';
 
 const MyRecipesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeForm'>>();
-  const { myRecipes, deleteRecipe } = useRecipeContext();
+  const { deleteRecipe, getUserRecipes } = useRecipeContext();
+  const { user } = useUserContext();
 
-  const { user } = useUserContext(); // <-- Agrega esto
+  const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [promptType, setPromptType] = useState<'create' | 'delete' | null>(null);
+  const [recipeToDelete, setRecipeToDelete] = useState<string | null>(null);
 
-  const [showPrompt, setShowPrompt] = React.useState(false);
-  const [promptType, setPromptType] = React.useState<'create' | 'delete' | null>(null);
-  const [recipeToDelete, setRecipeToDelete] = React.useState<string | null>(null);
+  // Cargar las recetas del usuario desde la base de datos
+  useEffect(() => {
+    const loadUserRecipes = async () => {
+      if (!user?.id) {
+        console.log('⚠️ No hay usuario autenticado');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log('👤 Cargando recetas del usuario:', user.id);
+        setLoading(true);
+        const recipes = await getUserRecipes(user.id);
+        console.log('✅ Recetas del usuario cargadas:', recipes.length);
+        setUserRecipes(recipes);
+      } catch (error) {
+        console.error('❌ Error al cargar recetas del usuario:', error);
+        setUserRecipes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserRecipes();
+  }, [user?.id, getUserRecipes]);
+
+  // Refrescar recetas cuando la pantalla esté en foco (después de crear/editar)
+  useFocusEffect(
+    React.useCallback(() => {
+      const refreshUserRecipes = async () => {
+        if (user?.id && !loading) {
+          console.log('🔄 Refrescando recetas del usuario al regresar a la pantalla');
+          try {
+            const recipes = await getUserRecipes(user.id);
+            setUserRecipes(recipes);
+            console.log('✅ Lista de recetas actualizada:', recipes.length, 'recetas');
+          } catch (error) {
+            console.error('❌ Error al refrescar recetas:', error);
+          }
+        }
+      };
+
+      // Pequeño delay para asegurar que la actualización del backend se haya completado
+      const timeoutId = setTimeout(refreshUserRecipes, 500);
+      return () => clearTimeout(timeoutId);
+    }, [user?.id, getUserRecipes, loading])
+  );
 
   const goToEdit = (recipe: any) => {
     navigation.navigate('RecipeForm', { recipe });
@@ -49,17 +99,24 @@ const MyRecipesScreen = () => {
     setShowPrompt(true);
   }; */
 
-  const handleYes = () => {
+  const handleYes = async () => {
     if (promptType === 'create') {
       setShowPrompt(false);
       setPromptType(null);
       navigation.navigate('RecipeForm', {});
     } else if (promptType === 'delete' && recipeToDelete) {
-      deleteRecipe(recipeToDelete);
+      try {
+        // Eliminar de la base de datos
+        deleteRecipe(recipeToDelete);
+        // Eliminar de la lista local también
+        setUserRecipes(prev => prev.filter(recipe => recipe.id !== recipeToDelete));
+        console.log('✅ Receta eliminada:', recipeToDelete);
+      } catch (error) {
+        console.error('❌ Error al eliminar receta:', error);
+      }
       setShowPrompt(false);
       setPromptType(null);
       setRecipeToDelete(null);
-      navigation.navigate('HomeTabs', { screen: 'MyRecipes' });
     }
   };
 
@@ -103,49 +160,56 @@ const MyRecipesScreen = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Mis Recetas</Text>
 
-      <FlatList
-  data={myRecipes}
-  keyExtractor={(item) => item.id}
-  renderItem={({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
-    >
-      <Image source={item.image} style={styles.image} />
-      <View style={styles.content}>
-        <Text style={styles.name}>{item.title}</Text>
-        <Text style={styles.rating}>{'⭐'.repeat(item.rating)}</Text>
-        <Text style={{ fontSize: 12, color: 'gray' }}>
-          ID: {item.id} - createdByUser: {String(item.createdByUser)}
-        </Text>
-      </View>
-            <View style={styles.actions}>
-              <TouchableOpacity onPress={() => goToEdit(item)}>
-                <Ionicons name="create-outline" size={22} color="#555" />
-              </TouchableOpacity>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#23294c" />
+          <Text style={styles.loadingText}>Cargando tus recetas...</Text>
+        </View>
+      ) : !user ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Debes iniciar sesión para ver tus recetas</Text>
+        </View>
+      ) : userRecipes.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Aún no has creado ninguna receta</Text>
+          <Text style={styles.emptySubtext}>¡Crea tu primera receta!</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={userRecipes}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
+            >
+              <Image source={item.image} style={styles.image} />
+              <View style={styles.content}>
+                <Text style={styles.name}>{item.title}</Text>
+                <Text style={styles.rating}>{'⭐'.repeat(item.rating)}</Text>
+                <Text style={{ fontSize: 12, color: 'gray' }}>
+                  ID: {item.id} - createdByUser: {String(item.createdByUser)}
+                </Text>
+              </View>
+              <View style={styles.actions}>
+                <TouchableOpacity onPress={() => goToEdit(item)}>
+                  <Ionicons name="create-outline" size={22} color="#555" />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => {
-                  setRecipeToDelete(item.id);
-                  setPromptType('delete');
-                  setShowPrompt(true);
-                }}
-              >
-
-              {/* <TouchableOpacity
-                onPress={() => {
-                  console.log('🧪 BOTÓN ELIMINAR PRESIONADO:', item.id);
-                  deleteRecipe(item.id);
-                  navigation.navigate('HomeTabs', { screen: 'MyRecipes' });
-                }}
-              > */}
-
-                <Ionicons name="trash-outline" size={22} color="#c00" />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
+                <TouchableOpacity
+                  onPress={() => {
+                    setRecipeToDelete(item.id);
+                    setPromptType('delete');
+                    setShowPrompt(true);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={22} color="#c00" />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
 
       <TouchableOpacity style={styles.button} onPress={goToCreate}>
         <Text style={styles.buttonText}>Nueva receta</Text>
@@ -202,6 +266,34 @@ const MyRecipesScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 16 },
   title: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginVertical: 10 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
   card: {
     flexDirection: 'row',
     backgroundColor: '#f9f9f9',
