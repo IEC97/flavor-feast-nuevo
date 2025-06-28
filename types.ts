@@ -33,6 +33,7 @@ export type Recipe = {
   createdAt?: number;
   servings?: number;
   categoryId?: number;
+  userId?: number; // ID del usuario que creó la receta
 };
 
 export type RootStackParamList = {

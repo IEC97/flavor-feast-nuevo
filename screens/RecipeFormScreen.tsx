@@ -268,6 +268,26 @@ const RecipeFormScreen = () => {
     };
 
     if (editingRecipe) {
+      console.log('🔄 Llamando editRecipe con ID:', editingRecipe.id);
+      console.log('📦 Recipe data completo:', {
+        title: recipeData.title,
+        description: recipeData.description,
+        ingredientsCount: recipeData.ingredients?.length || 0,
+        stepsCount: recipeData.steps?.length || 0,
+        servings: recipeData.servings,
+        categoryId: recipeData.categoryId,
+      });
+      console.log('🥕 Ingredientes a enviar (detallados):', recipeData.ingredients);
+      console.log('📝 Pasos a enviar (detallados):', recipeData.steps);
+      console.log('🎛️ Estado actual del formulario:', {
+        ingredients: ingredients.length,
+        steps: steps.length,
+        title,
+        description,
+        servings,
+        categoryId
+      });
+      
       editRecipe(editingRecipe.id, recipeData);
       //navigation.navigate('RecipeDetails', { recipe: recipeData });MyRecipesScreen
       navigation.navigate('RecipeDetails', { recipe: recipeData, fromEdit: true });
