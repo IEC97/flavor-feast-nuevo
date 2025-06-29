@@ -36,7 +36,7 @@ const FavoritesScreen = () => {
   // Actualizar al entrar a la pantalla
   useFocusEffect(
     React.useCallback(() => {
-      console.log('❤️ FavoritesScreen enfocada - cargando valoraciones');
+      // FavoritesScreen enfocada - cargando valoraciones
       loadFavoriteRatings();
       setForceUpdate(prev => prev + 1);
     }, [favorites])
@@ -44,7 +44,7 @@ const FavoritesScreen = () => {
 
   // Escuchar cambios en el cache para auto-actualizar
   useEffect(() => {
-    console.log(`📊 Favorites - Cache update counter: ${ratingCache.updateCounter}`);
+    // Cache update
     setForceUpdate(prev => prev + 1);
   }, [ratingCache.updateCounter]);
 
