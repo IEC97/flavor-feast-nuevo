@@ -106,6 +106,7 @@ const TabNavigator = () => {
           shadowOpacity: 0.1,
           shadowRadius: 8,
           elevation: 16, // Sombra para Android
+          position: 'absolute', // Mantener la barra siempre visible
         },
         tabBarLabelStyle: {
           fontSize: 10, // Tamaño estándar iOS
@@ -119,6 +120,8 @@ const TabNavigator = () => {
         tabBarIconStyle: {
           marginBottom: 2,
         },
+        tabBarHideOnKeyboard: true, // Ocultar cuando aparece el teclado
+        lazy: false, // Cargar todas las pantallas para navegación fluida
         headerShown: false,
       })}
     >

@@ -1,5 +1,6 @@
 // App.tsx
 import React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import { RecipeProvider } from './context/RecipeContext';
 import { FilterProvider } from './context/FilterContext';
@@ -11,14 +12,16 @@ export default function App(): React.ReactElement {
   const appNavigator = <AppNavigator />;
   
   return (
-    <NetworkProvider>
-      <NetworkWrapper>
-        <UserProvider children={
-          <RecipeProvider children={
-            <FilterProvider children={appNavigator} />
+    <SafeAreaProvider>
+      <NetworkProvider>
+        <NetworkWrapper>
+          <UserProvider children={
+            <RecipeProvider children={
+              <FilterProvider children={appNavigator} />
+            } />
           } />
-        } />
-      </NetworkWrapper>
-    </NetworkProvider>
+        </NetworkWrapper>
+      </NetworkProvider>
+    </SafeAreaProvider>
   );
 }

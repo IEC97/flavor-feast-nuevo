@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -297,7 +298,7 @@ useEffect(() => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <View style={styles.headerContainer}>
         <View style={styles.searchHeader}>
           <Ionicons name="restaurant" size={24} style={{ marginRight: 8 }} />
@@ -366,47 +367,27 @@ useEffect(() => {
         }
         keyExtractor={(item) => item.id}
         renderItem={renderRecipe}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={{ ...styles.listContainer, paddingBottom: 100 }}
         showsVerticalScrollIndicator={true}
         ListEmptyComponent={
           isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
         }
+        // Agregar espacio inferior para evitar superposición con TabBar
+        contentInsetAdjustmentBehavior="automatic"
       />
-      
 
-      {/* <FlatList
-        style={styles.list}
-        data={search.trim().length > 0 ? searchResults : sorted}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRecipe}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={true}
-        ListEmptyComponent={
-          isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
-        }
-      /> */}
-
-      {/* <FlatList
-        style={styles.list}
-        data={sorted}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRecipe}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={true}
-      /> */}
-
-      {/* ⚠️ Mensaje de inicio de sesión (solo si no hay usuario) */}
+      {/* ⚠️ Banner de inicio de sesión fijo (solo si no hay usuario) */}
       {!user && (
-        <View style={styles.loginBanner}>
-          <Text style={styles.loginText}>
-            ¿Todavía no tienes cuenta? <Text style={styles.bold}>¡Unete!</Text>
+        <View style={styles.loginBannerFixed}>
+          <Text style={styles.loginTextFixed}>
+            ¿Todavía no tienes cuenta? <Text style={styles.boldFixed}>¡Únete!</Text>
           </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.loginLink}>Iniciar Sesión</Text>
+            <Text style={styles.loginLinkFixed}>Iniciar Sesión</Text>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -475,7 +456,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingBottom: 100, // Espacio extra para evitar superposición con TabBar
   },
   recipeCard: {
     flexDirection: 'row',
@@ -494,23 +475,73 @@ const styles = StyleSheet.create({
   heartIcon: { padding: 10 },
 
   loginBanner: {
-    backgroundColor: '#fef3c7',
-    paddingVertical: 10,
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderColor: '#eee',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   loginText: {
-    fontSize: 13,
-    color: '#333',
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
   loginLink: {
-    color: '#007bff',
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
+
+  // Estilos para el banner fijo
+  loginBannerFixed: {
+    position: 'absolute',
+    bottom: 80, // Altura por encima de la TabBar
+    left: 0,
+    right: 0,
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  loginTextFixed: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: 'normal',
+  },
+  boldFixed: {
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  loginLinkFixed: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });
 
