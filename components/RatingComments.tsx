@@ -206,8 +206,10 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
       {/* Valoración del usuario */}
       {user && (
         <View style={styles.userRating}>
-          <Text style={styles.ratingText}>Tu valoración:</Text>
-          {renderStars(userRating, submitRating, 24)}
+          <View style={styles.ratingRow}>
+            <Text style={styles.ratingText}>Tu valoración:</Text>
+            {renderStars(userRating, submitRating, 24)}
+          </View>
           {userRating > 0 && (
             <Text style={styles.userRatingText}>Has valorado con {userRating} estrellas</Text>
           )}
@@ -302,12 +304,15 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   userRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   userRatingText: {
     fontSize: 12,

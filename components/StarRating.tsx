@@ -18,7 +18,7 @@ const StarRating: React.FC<StarRatingProps> = ({
   showHalf = true,
 }) => {
   const renderStar = (position: number) => {
-    const diff = rating - position;
+    const diff = rating - (position - 1); // Cambiar la lógica base
     
     if (diff >= 1) {
       // Estrella completa

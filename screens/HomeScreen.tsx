@@ -7,10 +7,11 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Recipe } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
@@ -19,6 +20,7 @@ import { useSortContext } from '../context/SortContext';
 import { useUserContext } from '../context/UserContext'; 
 import { API_BASE_URL } from '../constants'; 
 import StarRating from '../components/StarRating'; 
+import { useRatingCache } from '../context/RatingCacheContext'; 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'HomeTabs'>;
 
@@ -29,12 +31,22 @@ const HomeScreen = () => {
   const { filters } = useFilterContext();
   const { sortOrder } = useSortContext();
   const { user } = useUserContext(); // 👈 Obtener usuario del contexto
+  const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
   
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [latestRecipes, setLatestRecipes] = useState<Recipe[]>([]);
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[] | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [ratingsLoaded, setRatingsLoaded] = useState(false); // Estado para force re-render
+  const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
+  
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const PAGE_SIZE = 6; // Tamaño de página para paginación real
 
   const categoryIdMap: Record<string, string> = {
     Panaderia: '1',
@@ -73,32 +85,114 @@ const HomeScreen = () => {
     Papa: '20',
   };
 
-  useEffect(() => {
-    const fetchLatest = async () => {
-      try {
-        const url = `${API_BASE_URL}/recipes/latest`;
-        const response = await fetch(url);
-        const json = await response.json();
-        if (json.status === 200 && json.data) {
-          const adaptedData = json.data.map((item: any) => ({
-            id: String(item.idReceta),
-            title: item.nombre,
-            image: { uri: item.imagen },
-            author: item.usuario,
-            createdAt: new Date(item.fechaPublicacion).getTime(),
-            rating: 5,
-          }));
-          setLatestRecipes(adaptedData);
+  // Función para obtener las últimas recetas con paginación real del backend
+  const fetchLatest = async (page: number = 1, append: boolean = false) => {
+    try {
+      // Calcular offset basado en la página actual
+      const offset = (page - 1) * PAGE_SIZE;
+      const url = `${API_BASE_URL}/recipes&limit=${PAGE_SIZE}&offset=${offset}`;
+      
+      console.log(`🔍 Cargando página ${page} (offset: ${offset}, limit: ${PAGE_SIZE})`);
+      console.log(`🌐 URL: ${url}`);
+      
+      const response = await fetch(url);
+      const json = await response.json();
+      
+      if (json.status === 200 && json.data) {
+        const adaptedData = json.data.map((item: any) => ({
+          id: String(item.idReceta),
+          title: item.nombre,
+          image: { uri: item.imagen },
+          author: item.usuario,
+          createdAt: new Date(item.fechaPublicacion).getTime(),
+          rating: 0, // No usar rating hardcodeado
+        }));
+        
+        console.log(`✅ Cargadas ${adaptedData.length} recetas para página ${page}`);
+        
+        if (append) {
+          setLatestRecipes(prev => [...prev, ...adaptedData]);
         } else {
-          console.error('Error en backend:', json.message);
+          setLatestRecipes(adaptedData);
         }
-      } catch (error) {
-        console.error('Error fetching latest recipes:', error);
+        
+        // Actualizar estado de paginación basado en la cantidad recibida
+        setHasMoreData(adaptedData.length === PAGE_SIZE);
+        
+        // Cargar valoraciones para las nuevas recetas
+        if (adaptedData.length > 0) {
+          const recipeIds = adaptedData.map((recipe: Recipe) => recipe.id);
+          console.log(`🔍 Cargando valoraciones para ${recipeIds.length} recetas:`, recipeIds);
+          await ratingCache.loadMultipleRatings(recipeIds);
+          console.log(`✅ Valoraciones solicitadas para página ${page}`);
+          
+          // Force re-render para actualizar las valoraciones
+          setRatingsLoaded(prev => !prev);
+        }
+      } else {
+        console.error('Error en backend:', json.message);
+        setHasMoreData(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching latest recipes:', error);
+      setHasMoreData(false);
+    }
+  };
 
-    fetchLatest();
-  }, []);
+  // Función para cargar más recetas (infinite scroll)
+  const loadMoreRecipes = async () => {
+    if (loadingMore || !hasMoreData) return;
+    
+    setLoadingMore(true);
+    const nextPage = currentPage + 1;
+    await fetchLatest(nextPage, true); // append = true
+    setCurrentPage(nextPage);
+    setLoadingMore(false);
+  };
+
+  // Actualizar página
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Resetear paginación y cache de valoraciones
+      setCurrentPage(1);
+      setHasMoreData(true);
+      ratingCache.clearCache(); // Limpiar cache de valoraciones
+      
+      await fetchLatest(1, false); // Cargar primera página
+    } catch (error) {
+      console.error('❌ Error al actualizar:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Actualizar al entrar a la pantalla
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🏠 HomeScreen enfocada - iniciando refresh');
+      onRefresh();
+      // También forzar actualización de renderizado
+      setForceUpdate(prev => prev + 1);
+    }, [])
+  );
+
+  // Escuchar cambios en el cache de valoraciones para re-render automático
+  useEffect(() => {
+    console.log(`📊 Cache update counter: ${ratingCache.updateCounter} - forzando re-render`);
+    setForceUpdate(prev => prev + 1);
+  }, [ratingCache.updateCounter]);
+
+  // Force update cuando cambian las valoraciones cargadas
+  useEffect(() => {
+    console.log('🔄 Ratings loaded state changed - updating recipes');
+    setForceUpdate(prev => prev + 1);
+  }, [ratingsLoaded]);
+
+  // Eliminamos el useEffect duplicado que causaba el loop
+  // useEffect(() => {
+  //   fetchLatest();
+  // }, []);
 
   //Buesqueda de recetas por nombre
   // Esta función se ejecuta cada vez que el usuario escribe en el campo de búsqueda
@@ -277,26 +371,56 @@ useEffect(() => {
 
   const sorted = useMemo(() => applySort(filtered), [filtered, sortOrder]);
 
-  const renderRecipe = ({ item }: { item: Recipe }) => (
-    <TouchableOpacity
-      style={styles.recipeCard}
-      onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
-    >
-      <Image source={item.image} style={styles.recipeImage} />
-      <View style={styles.recipeInfo}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.author}>Por: {item.author}</Text>
-        <StarRating rating={item.rating} size={14} />
-      </View>
-      <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
-        <Ionicons
-          name={isFavorite(item.id) ? 'heart' : 'heart-outline'}
-          size={24}
-          color={isFavorite(item.id) ? 'red' : 'gray'}
-        />
+  const renderRecipe = ({ item }: { item: Recipe }) => {
+    const ratingData = ratingCache.getRating(item.id);
+    const averageRating = ratingData?.promedio || 0;
+    const voteCount = ratingData?.votos || 0;
+    const isRatingLoaded = ratingData !== undefined;
+    
+    // Debug log para una receta específica (incluir forceUpdate para tracking)
+    if (item.id === '1' || item.id === '18' || item.id === '20') {
+      console.log(`🔍 DEBUG Recipe ${item.id} (update: ${forceUpdate}):`, {
+        title: item.title,
+        ratingData,
+        isRatingLoaded,
+        averageRating,
+        voteCount
+      });
+    }
+    
+    const renderRatingSection = () => {
+      if (!isRatingLoaded) {
+        return <Text style={styles.ratingLoading}>Cargando valoración...</Text>;
+      }
+      
+      if (voteCount === 0) {
+        return <Text style={styles.noRating}>Sin valoraciones aún</Text>;
+      }
+      
+      return <StarRating rating={averageRating} size={14} />;
+    };
+    
+    return (
+      <TouchableOpacity
+        style={styles.recipeCard}
+        onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
+      >
+        <Image source={item.image} style={styles.recipeImage} />
+        <View style={styles.recipeInfo}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.author}>Por: {item.author}</Text>
+          {renderRatingSection()}
+        </View>
+        <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
+          <Ionicons
+            name={isFavorite(item.id) ? 'heart' : 'heart-outline'}
+            size={24}
+            color={isFavorite(item.id) ? 'red' : 'gray'}
+          />
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
@@ -366,13 +490,45 @@ useEffect(() => {
             ? filteredRecipes
             : sorted
         }
-        keyExtractor={(item, index) => `home-recipe-${item.id}-${index}`}
+        keyExtractor={(item, index) => `home-recipe-${item.id}-${index}-${forceUpdate}`}
         renderItem={renderRecipe}
         contentContainerStyle={{ ...styles.listContainer, paddingBottom: 100 }}
         showsVerticalScrollIndicator={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#23294c']}
+            tintColor="#23294c"
+          />
+        }
         ListEmptyComponent={
           isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
         }
+        ListFooterComponent={() => {
+          if (loadingMore) {
+            return (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text>Cargando más recetas...</Text>
+              </View>
+            );
+          }
+          if (!hasMoreData && latestRecipes.length > 0) {
+            return (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#666' }}>No hay más recetas</Text>
+              </View>
+            );
+          }
+          return null;
+        }}
+        onEndReached={() => {
+          // Solo cargar más si no estamos filtrando o buscando
+          if (search.trim().length === 0 && filteredRecipes === null) {
+            loadMoreRecipes();
+          }
+        }}
+        onEndReachedThreshold={0.1}
         // Agregar espacio inferior para evitar superposición con TabBar
         contentInsetAdjustmentBehavior="automatic"
       />
@@ -473,6 +629,8 @@ const styles = StyleSheet.create({
   title: { fontWeight: 'bold' },
   author: { fontSize: 12, color: '#555' },
   rating: { color: '#f9a825', fontSize: 14, marginTop: 5 },
+  ratingLoading: { fontSize: 12, color: '#999', marginTop: 5, fontStyle: 'italic' },
+  noRating: { fontSize: 12, color: '#bbb', marginTop: 5, fontStyle: 'italic' },
   heartIcon: { padding: 10 },
 
   loginBanner: {

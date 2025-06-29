@@ -1,5 +1,5 @@
 // ✅ screens/FavoritesScreen.tsx - muestra favoritos reales, navega a detalles y permite quitar
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,42 +11,88 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import StarRating from '../components/StarRating';
+import { useRatingCache } from '../context/RatingCacheContext';
 
 const FavoritesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeDetails'>>();
   const { favorites, toggleFavorite, isFavorite, refreshFavorites } = useRecipeContext();
   const [refreshing, setRefreshing] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
+  const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
+
+  // Función para cargar valoraciones de favoritos
+  const loadFavoriteRatings = async () => {
+    if (favorites.length === 0) return;
+    
+    const recipeIds = favorites.map(recipe => recipe.id);
+    await ratingCache.loadMultipleRatings(recipeIds);
+  };
+
+  // Actualizar al entrar a la pantalla
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('❤️ FavoritesScreen enfocada - cargando valoraciones');
+      loadFavoriteRatings();
+      setForceUpdate(prev => prev + 1);
+    }, [favorites])
+  );
+
+  // Escuchar cambios en el cache para auto-actualizar
+  useEffect(() => {
+    console.log(`📊 Favorites - Cache update counter: ${ratingCache.updateCounter}`);
+    setForceUpdate(prev => prev + 1);
+  }, [ratingCache.updateCounter]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshFavorites();
+    await loadFavoriteRatings();
     setRefreshing(false);
-  };  const renderFavorite = ({ item }: any) => (
-    <View style={styles.recipeCard}>
-      <Image source={item.image} style={styles.recipeImage} />
-      <View style={styles.recipeInfo}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
-        >
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.author}>Por: {item.author}</Text>
-          <StarRating rating={item.rating} size={14} />
+  };  const renderFavorite = ({ item }: any) => {
+    const ratingData = ratingCache.getRating(item.id);
+    const averageRating = ratingData?.promedio || 0;
+    const voteCount = ratingData?.votos || 0;
+    const isRatingLoaded = ratingData !== undefined;
+    
+    const renderRatingSection = () => {
+      if (!isRatingLoaded) {
+        return <Text style={styles.ratingLoading}>Cargando valoración...</Text>;
+      }
+      
+      if (voteCount === 0) {
+        return <Text style={styles.noRating}>Sin valoraciones aún</Text>;
+      }
+      
+      return <StarRating rating={averageRating} size={14} />;
+    };
+    
+    return (
+      <View style={styles.recipeCard}>
+        <Image source={item.image} style={styles.recipeImage} />
+        <View style={styles.recipeInfo}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
+          >
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.author}>Por: {item.author}</Text>
+            {renderRatingSection()}
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
+          <Ionicons
+            name={isFavorite(item.id) ? 'heart' : 'heart-outline'}
+            size={24}
+            color="#ff6b6b"
+          />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
-        <Ionicons
-          name={isFavorite(item.id) ? 'heart' : 'heart-outline'}
-          size={24}
-          color="#ff6b6b"
-        />
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
@@ -62,7 +108,7 @@ const FavoritesScreen = () => {
       ) : (
         <FlatList
           data={favorites}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => `favorite-${item.id}-${forceUpdate}`}
           renderItem={renderFavorite}
           contentContainerStyle={styles.listContainer}
           refreshControl={
@@ -152,6 +198,16 @@ const styles = StyleSheet.create({
   rating: {
     color: '#f39c12',
     fontSize: 14,
+  },
+  ratingLoading: {
+    color: '#95a5a6',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  noRating: {
+    color: '#bdd3d8',
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   heartIcon: {
     padding: 12,

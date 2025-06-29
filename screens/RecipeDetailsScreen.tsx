@@ -8,21 +8,20 @@ import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import RatingComments from '../components/RatingComments';
 import StarRating from '../components/StarRating';
-import { API_BASE_URL } from '../constants';
+import { useRatingCache } from '../context/RatingCacheContext';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
   const { toggleFavorite, isFavorite, getRecipeDetails, getRecipeAverageRating } = useRecipeContext();
+  const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
 
   const { fromEdit } = route.params || {};
 
   const [portions, setPortions] = useState(1);
   const [recipeWithDetails, setRecipeWithDetails] = useState<Recipe>(recipe);
   const [loading, setLoading] = useState(false);
-  const [averageRating, setAverageRating] = useState<number>(recipe.rating || 0);
-  const [voteCount, setVoteCount] = useState<number>(0);
 
   // Cargar ingredientes y pasos al entrar en la pantalla
   useEffect(() => {
@@ -44,15 +43,8 @@ const RecipeDetailsScreen = () => {
           console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
         }
         
-        // Cargar información de valoración completa desde el endpoint
-        const ratingResponse = await fetch(`${API_BASE_URL}/recipes/${recipe.id}/puntuacion`);
-        const ratingJson = await ratingResponse.json();
-        
-        if (ratingJson.status === 200 && ratingJson.data) {
-          setAverageRating(ratingJson.data.promedio || 0);
-          setVoteCount(ratingJson.data.cantidadVotos || 0);
-          console.log('✅ Valoración promedio cargada:', ratingJson.data.promedio, 'con', ratingJson.data.cantidadVotos, 'votos');
-        }
+        // Cargar información de valoración usando el cache
+        await ratingCache.loadRating(recipe.id);
         
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
@@ -62,9 +54,21 @@ const RecipeDetailsScreen = () => {
     };
 
     loadRecipeDetails();
-  }, [recipe.id, getRecipeDetails, getRecipeAverageRating]);
+  }, [recipe.id, getRecipeDetails]); // Quitar ratingCache de las dependencias
 
   const adjustQuantity = (qty: number) => Math.round(qty * portions);
+
+  // Obtener datos de valoración del cache
+  const ratingData = ratingCache.getRating(recipe.id);
+  const averageRating = ratingData?.promedio || 0;
+  const voteCount = ratingData?.votos || 0;
+  const isRatingLoaded = ratingData !== undefined;
+
+  // Callback para actualizar la valoración cuando el usuario vota
+  const handleRatingUpdate = (newRating: number, newVoteCount: number) => {
+    console.log('🔄 Actualizando valoración:', newRating, 'votos:', newVoteCount);
+    ratingCache.updateRating(recipe.id, { promedio: newRating, votos: newVoteCount });
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -83,10 +87,20 @@ const RecipeDetailsScreen = () => {
       <Text style={styles.title}>{recipeWithDetails.title}</Text>
       <Text style={styles.meta}>Por: {recipeWithDetails.author}</Text>
       <View style={styles.ratingContainer}>
-        <StarRating rating={averageRating} size={20} />
-        <Text style={styles.ratingText}>
-          ({averageRating.toFixed(1)} - {voteCount} {voteCount === 1 ? 'voto' : 'votos'})
-        </Text>
+        {isRatingLoaded ? (
+          voteCount > 0 ? (
+            <>
+              <StarRating rating={averageRating} size={20} />
+              <Text style={styles.ratingText}>
+                ({averageRating.toFixed(1)} - {voteCount} {voteCount === 1 ? 'voto' : 'votos'})
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.ratingText}>Sin valoraciones aún</Text>
+          )
+        ) : (
+          <Text style={styles.ratingText}>Cargando valoración...</Text>
+        )}
       </View>
       <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
@@ -146,11 +160,7 @@ const RecipeDetailsScreen = () => {
       <RatingComments 
         recipeId={recipe.id}
         currentRating={averageRating}
-        onRatingUpdate={(newRating, newVoteCount) => {
-          // Actualizar la valoración promedio y cantidad de votos cuando un usuario valore
-          setAverageRating(newRating);
-          setVoteCount(newVoteCount);
-        }}
+        onRatingUpdate={handleRatingUpdate}
       />
 
       {/* Botón solo si vienes de editar */}
