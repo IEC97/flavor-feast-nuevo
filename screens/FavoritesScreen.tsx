@@ -50,7 +50,7 @@ const FavoritesScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <Text style={styles.heading}>Mis Favoritos</Text>
       {favorites.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingBottom: 80,
   },
   recipeCard: {
     flexDirection: 'row',
