@@ -18,12 +18,10 @@ import { Recipe, RootStackParamList } from '../types';
 
 const RecipeStepsScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { editRecipe } = useRecipeContext();
+  const { addRecipe, editRecipe } = useRecipeContext();
 
   const route = useRoute<any>();
   const recipe = route.params?.recipe as Recipe;
-
-  const { addRecipe } = useRecipeContext();
 
   const [steps, setSteps] = useState(recipe?.steps || []);
   //const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
@@ -70,36 +68,45 @@ const RecipeStepsScreen = () => {
     }
   }; */
 
-  const handleSave = () => {
-
+  const handleSave = async () => {
     if (!recipe.ingredients || recipe.ingredients.length === 0) {
       Alert.alert('Error', 'Debe ingresar al menos un ingrediente.');
       return;
     }
-    if (steps.length === 0 || steps.every(s => !s.text && !s.description)) {
+    
+    const validSteps = steps.filter((step) => 
+      (step.text && step.text.trim() !== '') || 
+      (step.description && step.description.trim() !== '')
+    );
+    
+    if (validSteps.length === 0) {
       Alert.alert('Error', 'Debe ingresar al menos un paso.');
       return;
     }
 
-    // Crea la receta completa y la guarda
+    // Crear la receta completa con los pasos validados
     const completeRecipe = {
       ...recipe,
-      steps,
+      steps: validSteps,
     };
 
-    addRecipe(completeRecipe);
-    navigation.navigate('RecipeDetails', { recipe: completeRecipe });
-  };
-
-  /* const handleSave = () => {
-    const validSteps = steps.filter((step) => step.text.trim() !== '');
-    if (validSteps.length === 0) {
-      alert('Debes ingresar al menos un paso con descripción.');
-      return;
+    try {
+      // Si la receta tiene un ID, significa que estamos editando una receta existente
+      if (recipe.id) {
+        console.log('Editando receta existente con ID:', recipe.id);
+        await editRecipe(recipe.id, completeRecipe);
+        navigation.navigate('RecipeDetails', { recipe: completeRecipe });
+      } else {
+        // Si no tiene ID, es una nueva receta
+        console.log('Creando nueva receta');
+        await addRecipe(completeRecipe);
+        navigation.navigate('RecipeDetails', { recipe: completeRecipe });
+      }
+    } catch (error) {
+      console.error('Error al guardar la receta:', error);
+      Alert.alert('Error', 'No se pudo guardar la receta. Inténtalo de nuevo.');
     }
-    editRecipe(recipe.id, { ...recipe, steps: validSteps });
-    navigation.navigate('HomeTabs');
-  }; */
+  };
   
 
   return (
