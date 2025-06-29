@@ -109,7 +109,16 @@ const RecipeStepsScreen = () => {
         // Si no tiene ID o no es creada por el usuario, es una nueva receta
         console.log('Creando nueva receta - ID:', recipe.id, 'createdByUser:', recipe.createdByUser);
         await addRecipe(completeRecipe);
-        navigation.navigate('RecipeDetails', { recipe: completeRecipe });
+        
+        // Mostrar mensaje temporal
+        Alert.alert('¡Éxito!', 'Receta creada con éxito. Serás redirigido en un momento...');
+
+        // Redirigir automáticamente después de 2 segundos
+        setTimeout(() => {
+          navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
+        }, 2000);
+
+        //navigation.navigate('RecipeDetails', { recipe: completeRecipe });
       }
     } catch (error) {
       console.error('Error al guardar la receta:', error);

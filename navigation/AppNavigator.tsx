@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import LoginScreen from '../screens/LoginScreen';
+import MyRecipesScreen from '../screens/MyRecipesScreen';
 import RecipeDetailsScreen from '../screens/RecipeDetailsScreen';
 import RecipeFormScreen from '../screens/RecipeFormScreen';
 import RecipeStepsScreen from '../screens/RecipeStepsScreen';
@@ -40,6 +41,7 @@ export default function AppNavigator() {
           />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="RecipeDetails" component={RecipeDetailsScreen} />
+          <Stack.Screen name="MyRecipesScreen" component={MyRecipesScreen} />
           <Stack.Screen name="RecipeForm" component={RecipeFormScreen} />
           <Stack.Screen name="RecipeSteps" component={RecipeStepsScreen} />
           <Stack.Screen name="FilterScreen" component={FilterScreen} />
