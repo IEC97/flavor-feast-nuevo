@@ -327,6 +327,8 @@ const RecipeFormScreen = () => {
       createdByUser: true,
       servings: parseInt(servings, 10) || 1,
       categoryId: parseInt(categoryId, 10),
+      // Establecer fecha actual tanto para nuevas recetas como para ediciones
+      createdAt: Date.now(),
     };
 
     if (editingRecipe) {
@@ -338,9 +340,11 @@ const RecipeFormScreen = () => {
         stepsCount: recipeData.steps?.length || 0,
         servings: recipeData.servings,
         categoryId: recipeData.categoryId,
+        createdAt: recipeData.createdAt // Nueva fecha de edición
       });
       console.log('🥕 Ingredientes a enviar:', recipeData.ingredients.length, 'ingredientes');
       console.log('📝 Pasos a enviar:', recipeData.steps.length, 'pasos');
+      console.log('🕒 Fecha actualizada a:', new Date(recipeData.createdAt || Date.now()).toLocaleString());
       console.log('🎛️ Estado actual del formulario:', {
         ingredients: ingredients.length,
         steps: steps.length,
@@ -392,6 +396,8 @@ const RecipeFormScreen = () => {
         createdByUser: true,
         servings: parseInt(servings, 10),
         categoryId: parseInt(categoryId, 10),
+        // Establecer fecha actual cuando se navega al editor de pasos
+        createdAt: Date.now(),
       },
     });
   };
