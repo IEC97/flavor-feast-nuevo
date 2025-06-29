@@ -17,6 +17,7 @@ import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe, RootStackParamList, AvailableIngredient } from '../types';
 import { useUserContext } from '../context/UserContext';
 import { Picker } from '@react-native-picker/picker';
+import { API_BASE_URL } from '../constants';
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
@@ -72,18 +73,8 @@ const RecipeFormScreen = () => {
   const [availableIngredients, setAvailableIngredients] = useState<AvailableIngredient[]>([]);
   const [servings, setServings] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const categories = [
-    { id: 1, name: 'Panaderia' },
-    { id: 2, name: 'Cocina Salada' },
-    { id: 3, name: 'Reposteria' },
-    { id: 4, name: 'Bebidas' },
-    { id: 5, name: 'Ensaladas' },
-    { id: 6, name: 'Postres' },
-    { id: 7, name: 'Sopas' },
-    { id: 8, name: 'Platos Principales' },
-    { id: 9, name: 'Aperitivos' },
-    { id: 10, name: 'Salsas' },
-];
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   useEffect(() => {
     // Espera un ciclo de render para que el contexto se actualice
@@ -103,6 +94,63 @@ const RecipeFormScreen = () => {
     };
     loadAvailableIngredients();
   }, [getAvailableIngredients]);
+
+  // Cargar categorías del backend
+  useEffect(() => {
+    const loadCategories = async () => {
+      if (categoriesLoaded) return; // Solo cargar una vez
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/tipos`);
+        const json = await response.json();
+        
+        if (json.status === 200 && json.data) {
+          const adaptedCategories = json.data.map((cat: any) => ({
+            id: parseInt(cat.idTipo, 10),
+            name: cat.nombre
+          }));
+          setCategories(adaptedCategories);
+          setCategoriesLoaded(true);
+          console.log('✅ Categorías cargadas del backend:', adaptedCategories.length, 'categorías');
+        } else {
+          console.error('Error al cargar categorías:', json.message);
+        }
+      } catch (error) {
+        console.error('Error al cargar categorías:', error);
+        // Fallback a categorías hardcodeadas en caso de error
+        setCategories([
+          { id: 1, name: 'Panaderia' },
+          { id: 2, name: 'Cocina Salada' },
+          { id: 3, name: 'Reposteria' },
+          { id: 4, name: 'Bebidas' },
+          { id: 5, name: 'Ensaladas' },
+          { id: 6, name: 'Postres' },
+          { id: 7, name: 'Sopas' },
+          { id: 8, name: 'Platos Principales' },
+          { id: 9, name: 'Aperitivos' },
+          { id: 10, name: 'Salsas' },
+        ]);
+        setCategoriesLoaded(true);
+      }
+    };
+    loadCategories();
+  }, [categoriesLoaded]);
+
+  // Sincronizar categoryId cuando se cargan las categorías y hay una receta en edición
+  useEffect(() => {
+    if (categoriesLoaded && editingRecipe && categories.length > 0) {
+      // Si la receta tiene categoryId, usarlo
+      if (editingRecipe.categoryId) {
+        setCategoryId(editingRecipe.categoryId.toString());
+      } else if (editingRecipe.category && typeof editingRecipe.category === 'string') {
+        // Si no tiene categoryId pero tiene category name, buscar el ID correspondiente
+        const foundCategory = categories.find(cat => cat.name === editingRecipe.category);
+        if (foundCategory) {
+          setCategoryId(foundCategory.id.toString());
+        }
+      }
+    }
+  }, [categoriesLoaded, editingRecipe, categories]);
 
   useEffect(() => {
     if (editingRecipe) {
@@ -413,20 +461,26 @@ const RecipeFormScreen = () => {
       />
 
       <Text style={styles.label}>Tipo de Receta *</Text>
-      <Picker
-        selectedValue={categoryId}
-        onValueChange={(itemValue) => setCategoryId(itemValue)}
-        style={styles.input}
-      >
-        <Picker.Item label="Selecciona una categoría" value="" />
-        {categories.map((cat) => 
-          React.createElement(Picker.Item, {
-            key: cat.id,
-            label: cat.name,
-            value: cat.id.toString()
-          })
-        )}
-      </Picker>
+      {!categoriesLoaded ? (
+        <View style={{ padding: 16, alignItems: 'center' }}>
+          <Text style={{ color: '#666' }}>Cargando categorías...</Text>
+        </View>
+      ) : (
+        <Picker
+          selectedValue={categoryId}
+          onValueChange={(itemValue) => setCategoryId(itemValue)}
+          style={styles.input}
+        >
+          <Picker.Item label="Selecciona una categoría" value="" />
+          {categories.map((cat) => 
+            React.createElement(Picker.Item, {
+              key: cat.id,
+              label: cat.name,
+              value: cat.id.toString()
+            })
+          )}
+        </Picker>
+      )}
 
       <Text style={styles.label}>Ingredientes *</Text>
       {availableIngredients.length === 0 ? (
