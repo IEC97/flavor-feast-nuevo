@@ -1,5 +1,3 @@
-// Ruta: screens/ForgotPasswordScreen.tsx
-
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -66,13 +64,16 @@ const ForgotPasswordScreen = () => {
         <Text style={styles.buttonText}>Enviar</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.link}>Volver al inicio de sesión</Text>
-      </TouchableOpacity>
+      {/* Enlaces separados */}
+      <View style={styles.linksContainer}>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.link}>Volver al inicio de sesión</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('HomeTabs')}>
-        <Text style={[styles.link]}>Seguir sin iniciar sesión</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('HomeTabs')}>
+          <Text style={styles.link}>Seguir sin iniciar sesión</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -112,6 +113,11 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  linksContainer: {
+    marginTop: 40,
+    alignItems: 'center',
+    gap: 10,
   },
   link: {
     color: '#5b5bff',

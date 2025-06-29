@@ -93,9 +93,9 @@ const VerifyCodeScreen = () => {
         <Text style={styles.buttonText}>Verificar código</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => Alert.alert('Reenviar email', 'Funcionalidad pendiente')}>
+      {/* <TouchableOpacity onPress={() => Alert.alert('Reenviar email', 'Funcionalidad pendiente')}>
         <Text style={styles.resend}>¿No recibiste el correo? Reenviar email</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };
