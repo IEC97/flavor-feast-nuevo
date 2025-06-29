@@ -36,7 +36,8 @@ const HomeScreen = () => {
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [latestRecipes, setLatestRecipes] = useState<Recipe[]>([]);
+  const [latestRecipes, setLatestRecipes] = useState<Recipe[]>([]); // Para las 3 últimas recetas
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]); // Para la lista principal con paginación
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [ratingsLoaded, setRatingsLoaded] = useState(false); // Estado para force re-render
@@ -85,15 +86,10 @@ const HomeScreen = () => {
     Papa: '20',
   };
 
-  // Función para obtener las últimas recetas con paginación real del backend
-  const fetchLatest = async (page: number = 1, append: boolean = false) => {
+  // Función para obtener las 3 últimas recetas del endpoint específico
+  const fetchLatestThree = async () => {
     try {
-      // Calcular offset basado en la página actual
-      const offset = (page - 1) * PAGE_SIZE;
-      const url = `${API_BASE_URL}/recipes&limit=${PAGE_SIZE}&offset=${offset}`;
-      
-      console.log(`🔍 Cargando página ${page} (offset: ${offset}, limit: ${PAGE_SIZE})`);
-      console.log(`🌐 URL: ${url}`);
+      const url = `${API_BASE_URL}/recipes/latest`;
       
       const response = await fetch(url);
       const json = await response.json();
@@ -108,12 +104,47 @@ const HomeScreen = () => {
           rating: 0, // No usar rating hardcodeado
         }));
         
-        console.log(`✅ Cargadas ${adaptedData.length} recetas para página ${page}`);
+        setLatestRecipes(adaptedData);
+        
+        // Cargar valoraciones para las últimas 3 recetas
+        if (adaptedData.length > 0) {
+          const recipeIds = adaptedData.map((recipe: Recipe) => recipe.id);
+          await ratingCache.loadMultipleRatings(recipeIds);
+        }
+      } else {
+        console.error('Error al cargar últimas recetas:', json.message);
+        setLatestRecipes([]);
+      }
+    } catch (error) {
+      console.error('Error fetching latest 3 recipes:', error);
+      setLatestRecipes([]);
+    }
+  };
+
+  // Función para obtener recetas con paginación real del backend (para la lista principal)
+  const fetchAllRecipes = async (page: number = 1, append: boolean = false) => {
+    try {
+      // Calcular offset basado en la página actual
+      const offset = (page - 1) * PAGE_SIZE;
+      const url = `${API_BASE_URL}/recipes&limit=${PAGE_SIZE}&offset=${offset}`;
+      
+      const response = await fetch(url);
+      const json = await response.json();
+      
+      if (json.status === 200 && json.data) {
+        const adaptedData = json.data.map((item: any) => ({
+          id: String(item.idReceta),
+          title: item.nombre,
+          image: { uri: item.imagen },
+          author: item.usuario,
+          createdAt: new Date(item.fechaPublicacion).getTime(),
+          rating: 0, // No usar rating hardcodeado
+        }));
         
         if (append) {
-          setLatestRecipes(prev => [...prev, ...adaptedData]);
+          setAllRecipes(prev => [...prev, ...adaptedData]);
         } else {
-          setLatestRecipes(adaptedData);
+          setAllRecipes(adaptedData);
         }
         
         // Actualizar estado de paginación basado en la cantidad recibida
@@ -122,9 +153,7 @@ const HomeScreen = () => {
         // Cargar valoraciones para las nuevas recetas
         if (adaptedData.length > 0) {
           const recipeIds = adaptedData.map((recipe: Recipe) => recipe.id);
-          console.log(`🔍 Cargando valoraciones para ${recipeIds.length} recetas:`, recipeIds);
           await ratingCache.loadMultipleRatings(recipeIds);
-          console.log(`✅ Valoraciones solicitadas para página ${page}`);
           
           // Force re-render para actualizar las valoraciones
           setRatingsLoaded(prev => !prev);
@@ -134,7 +163,7 @@ const HomeScreen = () => {
         setHasMoreData(false);
       }
     } catch (error) {
-      console.error('Error fetching latest recipes:', error);
+      console.error('Error fetching all recipes:', error);
       setHasMoreData(false);
     }
   };
@@ -145,7 +174,7 @@ const HomeScreen = () => {
     
     setLoadingMore(true);
     const nextPage = currentPage + 1;
-    await fetchLatest(nextPage, true); // append = true
+    await fetchAllRecipes(nextPage, true); // append = true
     setCurrentPage(nextPage);
     setLoadingMore(false);
   };
@@ -159,7 +188,11 @@ const HomeScreen = () => {
       setHasMoreData(true);
       ratingCache.clearCache(); // Limpiar cache de valoraciones
       
-      await fetchLatest(1, false); // Cargar primera página
+      // Cargar tanto las últimas 3 recetas como la primera página de todas las recetas
+      await Promise.all([
+        fetchLatestThree(),
+        fetchAllRecipes(1, false) // Cargar primera página de la lista principal
+      ]);
     } catch (error) {
       console.error('❌ Error al actualizar:', error);
     } finally {
@@ -170,32 +203,24 @@ const HomeScreen = () => {
   // Actualizar al entrar a la pantalla
   useFocusEffect(
     React.useCallback(() => {
-      console.log('🏠 HomeScreen enfocada - iniciando refresh');
       onRefresh();
-      // También forzar actualización de renderizado
       setForceUpdate(prev => prev + 1);
     }, [])
   );
 
   // Escuchar cambios en el cache de valoraciones para re-render automático
   useEffect(() => {
-    console.log(`📊 Cache update counter: ${ratingCache.updateCounter} - forzando re-render`);
     setForceUpdate(prev => prev + 1);
   }, [ratingCache.updateCounter]);
 
   // Force update cuando cambian las valoraciones cargadas
   useEffect(() => {
-    console.log('🔄 Ratings loaded state changed - updating recipes');
     setForceUpdate(prev => prev + 1);
   }, [ratingsLoaded]);
 
   // Eliminamos el useEffect duplicado que causaba el loop
-  // useEffect(() => {
-  //   fetchLatest();
-  // }, []);
 
-  //Buesqueda de recetas por nombre
-  // Esta función se ejecuta cada vez que el usuario escribe en el campo de búsqueda
+  // Búsqueda de recetas por nombre
   useEffect(() => {
   if (search.trim().length === 0) {
     setSearchResults([]);
@@ -206,7 +231,6 @@ const HomeScreen = () => {
 
   const timeout = setTimeout(async () => {
     try {
-      //const url = `${API_BASE_URL}/recipes/search?search=${encodeURIComponent(search)}`;
       const url = `${API_BASE_URL}/recipes/search&nombre=${encodeURIComponent(search)}&orden=nombre_asc`;
       const response = await fetch(url, {
         method: 'GET',
@@ -215,7 +239,6 @@ const HomeScreen = () => {
         },
       });
       const text = await response.text();
-      //console.log('Respuesta búsqueda:', text);
       let json;
       try {
         json = JSON.parse(text);
@@ -248,7 +271,6 @@ const HomeScreen = () => {
 }, [search]);
 
 // Filtros de recetas por tipo, ingredientes incluidos y excluidos
-// Esta función se ejecuta al cargar la pantalla y cada vez que cambian las recetas
 useEffect(() => {
   // Detecta si hay filtros activos
   const hasInclude = filters.include && filters.include.length > 0;
@@ -344,7 +366,7 @@ useEffect(() => {
   };
 
   const filtered = useMemo(() => {
-    return recipes.filter((r: Recipe) => {
+    return allRecipes.filter((r: Recipe) => {
       const bySearch = r.title.toLowerCase().includes(search.toLowerCase());
       const byAuthor =
         !filters.user || r.author?.toLowerCase().includes(filters.user.toLowerCase());
@@ -367,7 +389,7 @@ useEffect(() => {
 
       return bySearch && byAuthor && byCategory && byInclude && byExclude;
     });
-  }, [recipes, filters, search]);
+  }, [allRecipes, filters, search]);
 
   const sorted = useMemo(() => applySort(filtered), [filtered, sortOrder]);
 
@@ -376,17 +398,6 @@ useEffect(() => {
     const averageRating = ratingData?.promedio || 0;
     const voteCount = ratingData?.votos || 0;
     const isRatingLoaded = ratingData !== undefined;
-    
-    // Debug log para una receta específica (incluir forceUpdate para tracking)
-    if (item.id === '1' || item.id === '18' || item.id === '20') {
-      console.log(`🔍 DEBUG Recipe ${item.id} (update: ${forceUpdate}):`, {
-        title: item.title,
-        ratingData,
-        isRatingLoaded,
-        averageRating,
-        voteCount
-      });
-    }
     
     const renderRatingSection = () => {
       if (!isRatingLoaded) {
@@ -435,14 +446,11 @@ useEffect(() => {
           />
         </View>
 
-        <Text style={styles.subheading}>Últimas Tres Recetas Cargadas: </Text>
-        <FlatList
-          data={latestRecipes}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item, index) => item.id ?? `latest-${index}`}
-          renderItem={({ item }) => (
+        <Text style={styles.subheading}>Últimas Tres Recetas: </Text>
+        <View style={styles.latestRecipesContainer}>
+          {latestRecipes.slice(0, 3).map((item, index) => (
             <TouchableOpacity
+              key={item.id ?? `latest-${index}`}
               style={styles.latestCard}
               onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
             >
@@ -465,9 +473,8 @@ useEffect(() => {
                 })()}
               </View>
             </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingHorizontal: 12 }}
-        />
+          ))}
+        </View>
 
         <View style={styles.filtersHeader}>
           <TouchableOpacity onPress={() => navigation.navigate('SortOptions')}>
@@ -513,7 +520,7 @@ useEffect(() => {
               </View>
             );
           }
-          if (!hasMoreData && latestRecipes.length > 0) {
+          if (!hasMoreData && allRecipes.length > 0) {
             return (
               <View style={{ padding: 20, alignItems: 'center' }}>
                 <Text style={{ color: '#666' }}>No hay más recetas</Text>
@@ -574,14 +581,23 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 8,
   },
+  latestRecipesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
   latestCard: {
-    marginRight: 12,
+    flex: 1,
+    maxWidth: '30%',
     alignItems: 'center',
+    marginHorizontal: 4,
   },
   latestImage: {
-    width: 120,
-    height: 100,
+    width: '100%',
+    aspectRatio: 1,
     borderRadius: 10,
+    maxWidth: 100,
   },
   latestTitleContainer: {
     alignItems: 'center',
