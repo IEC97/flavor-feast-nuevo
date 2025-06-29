@@ -72,6 +72,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             steps: r.pasos?.map((p: any) => ({
               description: p.descripcion,
               image: p.multimedia ? { uri: p.multimedia } : null,
+              imageUrl: p.multimedia || '',
             })) || [],
             createdByUser: false, // Se actualizará más tarde cuando tengamos el usuario
             createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),
@@ -171,7 +172,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       })),
       pasos: recipe.steps.map(s => ({
         descripcion: s.description || s.text || '',
-        multimedia: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : '',
+        multimedia: s.imageUrl || (s.image && typeof s.image === 'object' && 'uri' in s.image ? s.image.uri : ''),
       })),
     };
     
@@ -314,7 +315,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           
           camposModificados.pasos = updated.steps.map((s, index) => ({
             descripcion: s.description || s.text || '',
-            multimedia: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : '',
+            multimedia: s.imageUrl || (s.image && typeof s.image === 'object' && 'uri' in s.image ? s.image.uri : ''),
           }));
           console.log('📝 Pasos procesados para envío al backend');
           console.log('🚨 ENVIANDO PASOS - verificar si el backend duplica la receta');
@@ -647,6 +648,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           description: paso.descripcion,
           order: paso.numero,
           image: paso.multimedia ? { uri: paso.multimedia } : null,
+          imageUrl: paso.multimedia || '',
         }));
         return mappedSteps;
       }
@@ -735,6 +737,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             description: p.descripcion,
             order: p.numero,
             image: p.multimedia ? { uri: p.multimedia } : null,
+            imageUrl: p.multimedia || '',
           })) || [],
           createdByUser: true,
           createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),

@@ -1,5 +1,5 @@
 // screens/RecipeStepsScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import { useRecipeContext } from '../context/RecipeContext';
-import { Recipe, RootStackParamList } from '../types';
+import { Recipe, Step, RootStackParamList } from '../types';
 
 const RecipeStepsScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -26,16 +25,8 @@ const RecipeStepsScreen = () => {
   const [steps, setSteps] = useState(recipe?.steps || []);
   //const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
 
-  useEffect(() => {
-    (async () => {
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    })();
-  }, []);
-
-
-
   const addStep = () => {
-    setSteps([...steps, { text: '', image: undefined }]);
+    setSteps([...steps, { text: '', imageUrl: '' }]);
   };
 
   const removeStep = (index: number) => {
@@ -47,35 +38,11 @@ const RecipeStepsScreen = () => {
     }
   };
 
-  const handleChange = (index: number, field: 'text' | 'image', value: any) => {
+  const handleChange = (index: number, field: keyof Step, value: any) => {
     const updated = [...steps];
-    updated[index][field] = value;
+    (updated[index] as any)[field] = value;
     setSteps(updated);
   };
-
-  const pickImage = async (index: number) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-    console.log(result);
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      handleChange(index, 'image', { uri: result.assets[0].uri });
-    }
-  };
-
-  /* const pickImage = async (index: number) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      //mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      mediaTypes: [ImagePicker.MediaType.Image],
-      allowsEditing: true,
-      quality: 1,
-    });
-    if (!result.canceled) {
-      handleChange(index, 'image', { uri: result.assets[0].uri });
-    }
-  }; */
 
   const handleSave = async () => {
     if (!recipe.ingredients || recipe.ingredients.length === 0) {
@@ -153,17 +120,19 @@ const RecipeStepsScreen = () => {
             multiline
           />
           
-          <TouchableOpacity 
-            style={styles.imageBtn}
-            onPress={() => pickImage(index)}
-          >
-            <Text style={{ color: 'white', fontSize: 16 }}>
-              {step.image ? 'Cambiar imagen' : 'Subir imagen'}
-            </Text>
-          </TouchableOpacity>
+          <TextInput
+            placeholder="URL de imagen (opcional)"
+            value={step.imageUrl || ''}
+            onChangeText={(url: string) => handleChange(index, 'imageUrl', url)}
+            style={styles.imageInput}
+          />
           
-          {step.image && (
-            <Image source={step.image} style={styles.img} />
+          {step.imageUrl && step.imageUrl.trim() !== '' && (
+            <Image 
+              source={{ uri: step.imageUrl }} 
+              style={styles.img}
+              onError={() => console.log('Error loading image:', step.imageUrl)}
+            />
           )}
         </View>
       ))}
@@ -226,11 +195,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     minHeight: 60,
   },
-  imageBtn: {
-    backgroundColor: '#23244c',
-    padding: 10,
-    alignItems: 'center',
-    borderRadius: 20,
+  imageInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 8,
+    backgroundColor: '#f8f9fa',
   },
   img: {
     width: '100%',
