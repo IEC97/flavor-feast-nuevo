@@ -344,7 +344,7 @@ const HomeScreen = () => {
         const adaptedData = json.data.map((item: any) => ({
           id: String(item.idReceta),
           title: item.nombre,
-          image: { uri: item.imagen },
+          image: { uri: item.imagenMiniatura || item.imagen },
           author: item.usuario,
           createdAt: new Date(item.fechaPublicacion).getTime(),
           rating: 5,
