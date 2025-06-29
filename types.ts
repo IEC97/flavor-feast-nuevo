@@ -16,6 +16,7 @@ export type Step = {
   text?: string;
   description?: string;
   image?: ImageSourcePropType;
+  imageUrl?: string;
   order?: number;
 };
 

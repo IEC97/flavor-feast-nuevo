@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ const HomeScreen = () => {
   const { user } = useUserContext(); // 👈 Obtener usuario del contexto
   const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
   
+  // console.log('🔍 HomeScreen render - current sortOrder:', sortOrder); // Removido - muy verboso
+  
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -53,6 +55,22 @@ const HomeScreen = () => {
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
   const [ingredientIdMap, setIngredientIdMap] = useState<Record<string, string>>({});
   const [mapsLoaded, setMapsLoaded] = useState(false);
+
+  // Función para convertir opciones de ordenamiento a parámetros del backend
+  const getSortParameter = (sortOrder: string): string => {
+    switch (sortOrder) {
+      case 'Mas recientes':
+        return 'fecha_desc';
+      case 'Mas antiguas':
+        return 'fecha_asc';
+      case 'Nombre A-Z':
+        return 'nombre_asc';
+      case 'Nombre Z-A':
+        return 'nombre_desc';
+      default:
+        return 'fecha_desc'; // Por defecto
+    }
+  };
 
   // Función para crear mapa de categorías dinámico
   const createCategoryMap = (categories: any[]): Record<string, string> => {
@@ -90,7 +108,7 @@ const HomeScreen = () => {
     if (mapsLoaded) return; // Solo cargar una vez
     
     try {
-      console.log('🔄 Cargando mapas de categorías e ingredientes...');
+      // Cargar mapas de categorías e ingredientes
       
       const [catRes, ingRes] = await Promise.all([
         fetch(`${API_BASE_URL}/tipos`),
@@ -105,13 +123,13 @@ const HomeScreen = () => {
       if (catData.status === 200 && catData.data) {
         const catMap = createCategoryMap(catData.data);
         setCategoryIdMap(catMap);
-        console.log('✅ Mapa de categorías cargado:', catMap);
+        // console.log('✅ Mapa de categorías cargado:', catMap); // Removido - muy verboso
       }
 
       if (ingData.status === 200 && ingData.data) {
         const ingMap = createIngredientMap(ingData.data);
         setIngredientIdMap(ingMap);
-        console.log('✅ Mapa de ingredientes cargado:', Object.keys(ingMap).length, 'ingredientes');
+        // console.log('✅ Mapa de ingredientes cargado:', Object.keys(ingMap).length, 'ingredientes'); // Removido - muy verboso
       }
 
       setMapsLoaded(true);
@@ -160,10 +178,11 @@ const HomeScreen = () => {
     try {
       // Calcular offset basado en la página actual
       const offset = (page - 1) * PAGE_SIZE;
-      // Usar un endpoint que mantenga orden consistente sin parámetros de orden adicionales
-      const url = `${API_BASE_URL}/recipes&limit=${PAGE_SIZE}&offset=${offset}`;
+      // Incluir parámetro de ordenamiento
+      const sortParam = getSortParameter(sortOrder);
+      const url = `${API_BASE_URL}/recipes&limit=${PAGE_SIZE}&offset=${offset}&orden=${sortParam}`;
       
-      console.log(`📄 Fetching page ${page}, offset: ${offset}, append: ${append}`);
+      // console.log(`📄 Fetching page ${page}, offset: ${offset}, append: ${append}, sort: ${sortParam}`); // Removido - muy verboso
       
       const response = await fetch(url);
       const json = await response.json();
@@ -178,17 +197,17 @@ const HomeScreen = () => {
           rating: 0,
         }));
         
-        console.log(`✅ Received ${adaptedData.length} recipes for page ${page}`);
-        console.log(`📋 Recipe IDs: ${adaptedData.map((r: Recipe) => r.id).join(', ')}`);
+        // console.log(`✅ Received ${adaptedData.length} recipes for page ${page}`); // Removido - muy verboso
+        // Mapa de categorías cargado
         
         if (append) {
           setAllRecipes(prev => {
             const newRecipes = [...prev, ...adaptedData];
-            console.log(`📊 Total recipes after append: ${newRecipes.length}`);
+            // Total recipes after append
             return newRecipes;
           });
         } else {
-          console.log(`🔄 Replacing recipes with ${adaptedData.length} new recipes`);
+          // Replacing recipes with new recipes
           setAllRecipes(adaptedData);
         }
         
@@ -214,24 +233,24 @@ const HomeScreen = () => {
   // Función para cargar más recetas (infinite scroll)
   const loadMoreRecipes = async () => {
     if (loadingMore || !hasMoreData) {
-      console.log(`❌ Skipping loadMore: loadingMore=${loadingMore}, hasMoreData=${hasMoreData}`);
+      // Skipping loadMore: already loading or no more data
       return;
     }
     
     const nextPage = currentPage + 1;
-    console.log(`📄 Loading page ${nextPage} (current total: ${allRecipes.length} recipes)`);
+    // Loading next page
     
     setLoadingMore(true);
     await fetchAllRecipes(nextPage, true); // append = true
     setCurrentPage(nextPage);
     setLoadingMore(false);
     
-    console.log(`✅ Finished loading page ${nextPage}`);
+    // Finished loading page
   };
 
   // Función para resetear completamente el estado
   const resetPagination = () => {
-    console.log('🔄 Resetting pagination state');
+    // Resetting pagination state
     setCurrentPage(1);
     setLoadingMore(false);
     setHasMoreData(true);
@@ -242,7 +261,7 @@ const HomeScreen = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      console.log('🔄 Starting refresh...');
+      // Starting refresh...
       // Resetear completamente el estado de paginación
       resetPagination();
       ratingCache.clearCache(); // Limpiar cache de valoraciones
@@ -253,7 +272,7 @@ const HomeScreen = () => {
         fetchLatestThree(),
         fetchAllRecipes(1, false) // Cargar primera página de la lista principal
       ]);
-      console.log('✅ Refresh completed');
+      // Refresh completed
     } catch (error) {
       console.error('❌ Error al actualizar:', error);
     } finally {
@@ -268,6 +287,18 @@ const HomeScreen = () => {
       setForceUpdate(prev => prev + 1);
     }, [])
   );
+
+  // Recargar recetas cuando cambie el ordenamiento
+  useEffect(() => {
+    // Usar setTimeout para asegurar que las variables de estado estén actualizadas
+    setTimeout(() => {
+      // Solo recargar si no estamos en una búsqueda activa ni con filtros aplicados
+      if (search.trim().length === 0 && (!filters.include?.length && !filters.exclude?.length && !filters.categories?.length)) {
+        resetPagination();
+        fetchAllRecipes(1, false);
+      }
+    }, 0);
+  }, [sortOrder]);
 
   // Escuchar cambios en el cache de valoraciones para re-render automático
   useEffect(() => {
@@ -292,7 +323,8 @@ const HomeScreen = () => {
 
   const timeout = setTimeout(async () => {
     try {
-      const url = `${API_BASE_URL}/recipes/search&nombre=${encodeURIComponent(search)}&orden=nombre_asc`;
+      const sortParam = getSortParameter(sortOrder);
+      const url = `${API_BASE_URL}/recipes/search&nombre=${encodeURIComponent(search)}&orden=${sortParam}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -329,7 +361,7 @@ const HomeScreen = () => {
 
   return () => clearTimeout(timeout);
 
-}, [search]);
+}, [search, sortOrder]);
 
 // Filtros de recetas por tipo, ingredientes incluidos y excluidos
 useEffect(() => {
@@ -346,7 +378,7 @@ useEffect(() => {
 
   // Esperar a que los mapas estén cargados antes de filtrar
   if (!mapsLoaded) {
-    console.log('⏳ Esperando mapas de IDs antes de aplicar filtros...');
+    // Esperar a que los mapas estén cargados antes de filtrar
     return;
   }
 
@@ -396,21 +428,11 @@ useEffect(() => {
   if (tipoId) params.push(`tipo=${tipoId}`);
   if (incluirIds) params.push(`incluirIngredientes=${incluirIds}`);
   if (excluirIds) params.push(`excluirIngredientes=${excluirIds}`);
-  params.push('orden=fecha_desc'); // Cambiar a descendente para consistencia
+  const sortParam = getSortParameter(sortOrder);
+  params.push(`orden=${sortParam}`);
   url += '&' + params.join('&');
 
-  console.log('🔍 Aplicando filtros:', {
-    categoria: filters.categories[0],
-    categoriaNormalizada: hasCategory ? filters.categories[0]
-      .replace(/\s+/g, '')
-      .replace(/ía/g, 'ia')
-      .replace(/ó/g, 'o') : undefined,
-    tipoId,
-    categoryIdMap,
-    incluirIds,
-    excluirIds,
-    url
-  });
+  // Aplicar filtros al backend
 
   let cancelled = false;
 
@@ -455,7 +477,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [filters.include, filters.exclude, filters.categories, mapsLoaded, categoryIdMap, ingredientIdMap]);
+}, [filters.include, filters.exclude, filters.categories, mapsLoaded, categoryIdMap, ingredientIdMap, sortOrder]);
 
   const applySort = (list: Recipe[]) => {
     return [...list].sort((a, b) => {
@@ -488,7 +510,14 @@ useEffect(() => {
     });
   }, [allRecipes, filters, search, searchResults, filteredRecipes]);
 
-  const sorted = useMemo(() => applySort(filtered), [filtered, sortOrder]);
+  const sorted = useMemo(() => {
+    // Los datos del backend ya vienen ordenados, solo aplicar applySort como fallback para filtros locales
+    // que no tienen búsqueda ni filtros de backend activos
+    if (search.trim().length === 0 && filteredRecipes === null) {
+      return applySort(filtered);
+    }
+    return filtered;
+  }, [filtered, sortOrder]);
 
   const renderRecipe = ({ item }: { item: Recipe }) => {
     const ratingData = ratingCache.getRating(item.id);
@@ -630,26 +659,13 @@ useEffect(() => {
           return null;
         }}
         onEndReached={(info) => {
-          console.log(`🔽 onEndReached triggered:`, {
-            distanceFromEnd: info?.distanceFromEnd,
-            search: search.trim(),
-            hasFilters: filteredRecipes !== null,
-            loadingMore,
-            hasMoreData,
-            refreshing,
-            currentRecipeCount: allRecipes.length
-          });
-          
           // Solo cargar más si estamos en la lista principal (sin búsqueda ni filtros)
           if (search.trim().length === 0 && 
               filteredRecipes === null && 
               !loadingMore && 
               hasMoreData &&
               !refreshing) {
-            console.log(`✅ Loading more recipes...`);
             loadMoreRecipes();
-          } else {
-            console.log(`❌ Skipping load more due to conditions`);
           }
         }}
         onEndReachedThreshold={0.5}

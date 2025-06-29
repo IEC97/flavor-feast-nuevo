@@ -10,7 +10,10 @@ const SortOptionsScreen = () => {
   const navigation = useNavigation();
   const { sortOrder, setSortOrder } = useSortContext();
 
+  // Current sort order state
+
   const handleSelect = (option: any) => {
+    console.log('🔄 SortOptionsScreen - Setting sort order to:', option);
     setSortOrder(option);
     navigation.goBack();
   };

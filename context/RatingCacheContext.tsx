@@ -32,7 +32,7 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const rating = cache[recipeId];
     // Solo loggear para debug específico
     if (recipeId === '1' && rating) {
-      console.log(`🎯 Cache hit para ${recipeId}:`, rating);
+      // Cache hit para rating
     }
     return rating;
   }, [cache]);
@@ -65,7 +65,7 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setLoading(prev => new Set(prev.add(recipeId)));
 
     try {
-      console.log(`🔍 Cargando valoración desde API para receta ${recipeId}`);
+      // Cargando valoración desde API
       const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/puntuacion`);
       const json = await response.json();
 
@@ -76,9 +76,9 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
           promedio: json.data.promedio,
           votos: json.data.cantidadVotos || 0
         };
-        console.log(`✅ Valoración cargada para ${recipeId}: ${json.data.promedio} (${json.data.cantidadVotos} votos)`);
+        // Valoración cargada exitosamente
       } else {
-        console.log(`⚠️ Sin valoración para receta ${recipeId}`);
+        // Sin valoración para esta receta
         ratingData = { promedio: 0, votos: 0 };
       }
 
@@ -107,27 +107,27 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const idsToLoad = recipeIds.filter(id => !cache[id] && !loading.has(id));
     
     if (idsToLoad.length === 0) {
-      console.log('📊 Todas las valoraciones solicitadas ya están en cache');
+      // Todas las valoraciones ya están en cache
       return;
     }
 
-    console.log(`🔍 Cargando ${idsToLoad.length} valoraciones nuevas de ${recipeIds.length} solicitadas`);
+    // Cargando valoraciones nuevas
 
     // Cargar todas en paralelo
     const ratingPromises = idsToLoad.map(id => loadRating(id));
     await Promise.all(ratingPromises);
 
-    console.log(`📊 Cache actualizado con ${idsToLoad.length} nuevas valoraciones`);
+    // Cache actualizado con nuevas valoraciones
   }, [cache, loading, loadRating]);
 
   const updateRating = useCallback((recipeId: string, newRating: RatingData) => {
-    console.log(`🔄 Actualizando valoración en cache para ${recipeId}: ${newRating.promedio}`);
+    // Actualizando valoración en cache
     setCache(prev => ({ ...prev, [recipeId]: newRating }));
     setUpdateCounter(prev => prev + 1); // Incrementar contador de actualizaciones
   }, []);
 
   const clearCache = useCallback(() => {
-    console.log('🗑️ Limpiando cache de valoraciones');
+    // Limpiando cache de valoraciones
     setCache({});
     setLoading(new Set());
     setUpdateCounter(prev => prev + 1); // Incrementar contador de actualizaciones

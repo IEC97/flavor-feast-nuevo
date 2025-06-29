@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import { RecipeProvider } from './context/RecipeContext';
 import { FilterProvider } from './context/FilterContext';
+import { SortProvider } from './context/SortContext';
 import { UserProvider } from './context/UserContext';
 import { NetworkProvider } from './context/NetworkContext';
 import { RatingCacheProvider } from './context/RatingCacheContext';
@@ -19,7 +20,9 @@ export default function App(): React.ReactElement {
           <UserProvider children={
             <RecipeProvider children={
               <FilterProvider children={
-                <RatingCacheProvider children={appNavigator} />
+                <SortProvider children={
+                  <RatingCacheProvider children={appNavigator} />
+                } />
               } />
             } />
           } />

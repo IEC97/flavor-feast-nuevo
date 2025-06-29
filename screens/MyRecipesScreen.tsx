@@ -36,22 +36,22 @@ const MyRecipesScreen = () => {
   // Cargar las recetas del usuario desde la base de datos
   const loadUserRecipes = async () => {
     if (!user?.id) {
-      console.log('⚠️ No hay usuario autenticado');
+      // No hay usuario autenticado
       setLoading(false);
       return;
     }
 
     try {
-      console.log('👤 Cargando recetas del usuario:', user.id);
+      // Cargando recetas del usuario
       setLoading(true);
       const recipes = await getUserRecipes(user.id);
-      console.log('✅ Recetas del usuario cargadas:', recipes.length);
+      // Recetas del usuario cargadas
       setUserRecipes(recipes);
 
       // Cargar valoraciones para las recetas del usuario
       if (recipes.length > 0) {
         const recipeIds = recipes.map(recipe => recipe.id);
-        console.log('🔍 Cargando valoraciones para recetas del usuario:', recipeIds);
+        // Cargando valoraciones para recetas del usuario
         await loadMultipleRatings(recipeIds);
       }
     } catch (error) {
@@ -68,7 +68,7 @@ const MyRecipesScreen = () => {
 
   // Re-render automático cuando cambia el cache de valoraciones
   useEffect(() => {
-    console.log('🔄 MyRecipesScreen: Cache de valoraciones actualizado, forzando re-render');
+    // Cache de valoraciones actualizado
     setForceUpdateCounter(prev => prev + 1);
   }, [updateCounter]);
 
@@ -77,11 +77,11 @@ const MyRecipesScreen = () => {
     React.useCallback(() => {
       const refreshUserRecipes = async () => {
         if (user?.id && !loading) {
-          console.log('🔄 Refrescando recetas del usuario al regresar a la pantalla');
+          // Refrescando recetas del usuario
           try {
             const recipes = await getUserRecipes(user.id);
             setUserRecipes(recipes);
-            console.log('✅ Lista de recetas actualizada:', recipes.length, 'recetas');
+            // Lista de recetas actualizada
             
             // Recargar valoraciones después de actualizar recetas
             if (recipes.length > 0) {
