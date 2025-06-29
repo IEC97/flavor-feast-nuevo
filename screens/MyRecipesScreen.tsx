@@ -186,7 +186,7 @@ const MyRecipesScreen = () => {
       ) : (
         <FlatList
           data={userRecipes}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => `recipe-${item.id}-${index}`}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.card}
