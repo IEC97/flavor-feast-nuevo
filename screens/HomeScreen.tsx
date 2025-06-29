@@ -49,41 +49,75 @@ const HomeScreen = () => {
   const [hasMoreData, setHasMoreData] = useState(true);
   const PAGE_SIZE = 6; // Tamaño de página para paginación real
 
-  const categoryIdMap: Record<string, string> = {
-    Panaderia: '1',
-    CocinaSalada: '2',
-    Reposteria: '3',
-    Bebidas: '4',
-    Ensaladas: '5',
-    Postres: '6',
-    Sopas: '7',
-    //Pescado: '8',
-    PlatosPrincipales: '8',
-    Aperitivos: '9',
-    Salsas: '10',
+  // Estados para mapas dinámicos
+  const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
+  const [ingredientIdMap, setIngredientIdMap] = useState<Record<string, string>>({});
+  const [mapsLoaded, setMapsLoaded] = useState(false);
+
+  // Función para crear mapa de categorías dinámico
+  const createCategoryMap = (categories: any[]): Record<string, string> => {
+    const map: Record<string, string> = {};
+    categories.forEach((cat) => {
+      // Normalizar nombre para que coincida con el formato usado en filtros
+      const normalizedName = cat.nombre
+        .replace(/\s+/g, '') // Quitar espacios
+        .replace(/ía/g, 'ia') // Panadería -> Panaderia
+        .replace(/ó/g, 'o'); // Repostería -> Reposteria
+      
+      map[normalizedName] = String(cat.idTipo);
+    });
+    return map;
   };
 
-  const ingredientIdMap: Record<string, string> = {
-    Pollo: '1',
-    Azucar: '2',
-    Manzanas: '3',
-    Levadura: '4',
-    Huevos: '5',
-    Leche: '6',
-    Mantequilla: '7',
-    Sal: '8',
-    Pimienta: '9',
-    Aceitedeoliva: '10',
-    Arroz: '11',
-    Tomates: '12',
-    Cebolla: '13',
-    Ajo: '14',
-    Queso: '15',
-    Chcocolatenegro: '16',
-    Vainilla: '17',
-    Limon: '18',
-    Zanahoria: '19',
-    Papa: '20',
+  // Función para crear mapa de ingredientes dinámico
+  const createIngredientMap = (ingredients: any[]): Record<string, string> => {
+    const map: Record<string, string> = {};
+    ingredients.forEach((ing) => {
+      // Normalizar nombre para que coincida con el formato usado en filtros
+      const normalizedName = ing.nombre
+        .replace(/\s+/g, '') // Quitar espacios: "Aceite de oliva" -> "Aceitedoliva"
+        .replace(/ú/g, 'u') // Azúcar -> Azucar
+        .replace(/ó/g, 'o') // Limón -> Limon
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Quitar acentos
+      
+      map[normalizedName] = String(ing.idIngrediente);
+    });
+    return map;
+  };
+
+  // Función para cargar mapas de IDs dinámicamente
+  const loadIdMaps = async () => {
+    if (mapsLoaded) return; // Solo cargar una vez
+    
+    try {
+      console.log('🔄 Cargando mapas de categorías e ingredientes...');
+      
+      const [catRes, ingRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/tipos`),
+        fetch(`${API_BASE_URL}/ingredients`)
+      ]);
+
+      const [catData, ingData] = await Promise.all([
+        catRes.json(),
+        ingRes.json()
+      ]);
+
+      if (catData.status === 200 && catData.data) {
+        const catMap = createCategoryMap(catData.data);
+        setCategoryIdMap(catMap);
+        console.log('✅ Mapa de categorías cargado:', catMap);
+      }
+
+      if (ingData.status === 200 && ingData.data) {
+        const ingMap = createIngredientMap(ingData.data);
+        setIngredientIdMap(ingMap);
+        console.log('✅ Mapa de ingredientes cargado:', Object.keys(ingMap).length, 'ingredientes');
+      }
+
+      setMapsLoaded(true);
+    } catch (error) {
+      console.error('❌ Error al cargar mapas de IDs:', error);
+    }
   };
 
   // Función para obtener las 3 últimas recetas del endpoint específico
@@ -213,8 +247,9 @@ const HomeScreen = () => {
       resetPagination();
       ratingCache.clearCache(); // Limpiar cache de valoraciones
       
-      // Cargar tanto las últimas 3 recetas como la primera página de todas las recetas
+      // Cargar mapas de IDs y recetas en paralelo
       await Promise.all([
+        loadIdMaps(), // Cargar mapas dinámicos
         fetchLatestThree(),
         fetchAllRecipes(1, false) // Cargar primera página de la lista principal
       ]);
@@ -309,22 +344,50 @@ useEffect(() => {
     return;
   }
 
+  // Esperar a que los mapas estén cargados antes de filtrar
+  if (!mapsLoaded) {
+    console.log('⏳ Esperando mapas de IDs antes de aplicar filtros...');
+    return;
+  }
+
   setIsSearching(true);
 
-  // Convierte los nombres de ingredientes a IDs
+  // Convierte los nombres de ingredientes a IDs usando el mapa dinámico
   const incluirIds = (filters.include || [])
-    .map((name) => ingredientIdMap[name])
+    .map((name) => {
+      // Normalizar nombre igual que en createIngredientMap
+      const normalizedName = name
+        .replace(/\s+/g, '')
+        .replace(/ú/g, 'u')
+        .replace(/ó/g, 'o')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return ingredientIdMap[normalizedName];
+    })
     .filter(Boolean)
     .join(',');
 
   const excluirIds = (filters.exclude || [])
-    .map((name) => ingredientIdMap[name])
+    .map((name) => {
+      // Normalizar nombre igual que en createIngredientMap
+      const normalizedName = name
+        .replace(/\s+/g, '')
+        .replace(/ú/g, 'u')
+        .replace(/ó/g, 'o')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return ingredientIdMap[normalizedName];
+    })
     .filter(Boolean)
     .join(',');
 
-  // Convierte la categoría a ID
+  // Convierte la categoría a ID usando el mapa dinámico
   const tipoId = hasCategory
-    ? categoryIdMap[filters.categories[0].replace(/\s/g, '')]
+    ? (() => {
+        const normalizedCategory = filters.categories[0]
+          .replace(/\s+/g, '') // Quitar espacios
+          .replace(/ía/g, 'ia') // Panadería -> Panaderia
+          .replace(/ó/g, 'o'); // Repostería -> Reposteria
+        return categoryIdMap[normalizedCategory];
+      })()
     : undefined;
 
   // Construye la URL según los filtros activos
@@ -335,6 +398,19 @@ useEffect(() => {
   if (excluirIds) params.push(`excluirIngredientes=${excluirIds}`);
   params.push('orden=fecha_desc'); // Cambiar a descendente para consistencia
   url += '&' + params.join('&');
+
+  console.log('🔍 Aplicando filtros:', {
+    categoria: filters.categories[0],
+    categoriaNormalizada: hasCategory ? filters.categories[0]
+      .replace(/\s+/g, '')
+      .replace(/ía/g, 'ia')
+      .replace(/ó/g, 'o') : undefined,
+    tipoId,
+    categoryIdMap,
+    incluirIds,
+    excluirIds,
+    url
+  });
 
   let cancelled = false;
 
@@ -379,7 +455,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [filters.include, filters.exclude, filters.categories]);
+}, [filters.include, filters.exclude, filters.categories, mapsLoaded, categoryIdMap, ingredientIdMap]);
 
   const applySort = (list: Recipe[]) => {
     return [...list].sort((a, b) => {
