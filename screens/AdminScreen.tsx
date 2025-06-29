@@ -218,7 +218,7 @@ const AdminScreen = () => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#13162e" />
           <Text style={styles.loadingText}>Cargando recetas...</Text>
         </View>
       ) : (

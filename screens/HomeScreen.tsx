@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   heartIcon: { padding: 10 },
 
   loginBanner: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#13162e',
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginHorizontal: 16,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     bottom: 80, // Altura por encima de la TabBar
     left: 0,
     right: 0,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#13162e',
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginHorizontal: 16,

@@ -80,7 +80,7 @@ const TabNavigator = () => {
                 onPressIn={handleProfilePressIn}
                 onPressOut={handleProfilePressOut}
                 activeOpacity={0.7}
-                style={{ padding: 8 }}
+                style={{ padding: 4 }}
               >
                 <Ionicons name={iconName} size={24} color={color} />
               </TouchableOpacity>
@@ -89,33 +89,35 @@ const TabNavigator = () => {
 
           return <Ionicons name={iconName} size={24} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF', // iOS Blue para mejor accesibilidad
-        tabBarInactiveTintColor: '#8E8E93', // iOS Gray para estados inactivos
+        tabBarActiveTintColor: '#13162e', // Color principal de la app
+        tabBarInactiveTintColor: '#8E8E93', // Gris para estados inactivos
         tabBarStyle: {
-          backgroundColor: '#FFFFFF', // Fondo blanco para mejor contraste
-          borderTopWidth: 0.5,
-          borderTopColor: '#E5E5EA', // Línea sutil superior
-          height: 83, // Altura estándar iOS (49 + 34 safe area)
+          backgroundColor: '#FFFFFF', // Fondo blanco
+          borderTopWidth: 1,
+          borderTopColor: '#13162e', // Línea superior con color principal
+          height: 83, // Altura estándar iOS
           paddingBottom: 20, // Espacio para safe area en iPhone X+
           paddingTop: 8,
           shadowColor: '#000',
           shadowOffset: {
             width: 0,
-            height: -2,
+            height: -4,
           },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 16, // Sombra para Android
-          position: 'absolute', // Mantener la barra siempre visible
+          shadowOpacity: 0.15,
+          shadowRadius: 6,
+          elevation: 12, // Sombra más sutil para Android
+          position: 'absolute',
         },
         tabBarLabelStyle: {
-          fontSize: 10, // Tamaño estándar iOS
-          fontWeight: '500', // Peso medio para mejor legibilidad
+          fontSize: 10,
+          fontWeight: '600', // Más bold para mejor legibilidad
           marginTop: 2,
           marginBottom: 0,
         },
         tabBarItemStyle: {
           paddingVertical: 4,
+          borderRadius: 0, // Sin bordes redondeados para eliminar efectos circulares
+          backgroundColor: 'transparent', // Fondo transparente
         },
         tabBarIconStyle: {
           marginBottom: 2,

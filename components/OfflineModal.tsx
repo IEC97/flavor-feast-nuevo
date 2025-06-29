@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   retryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#13162e',
   },
   retryButtonText: {
     color: 'white',
