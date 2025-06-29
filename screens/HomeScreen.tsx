@@ -40,7 +40,6 @@ const HomeScreen = () => {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]); // Para la lista principal con paginación
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [ratingsLoaded, setRatingsLoaded] = useState(false); // Estado para force re-render
   const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
   
   // Estados para paginación
@@ -132,6 +131,15 @@ const HomeScreen = () => {
       console.log(`📄 Fetching page ${page}, offset: ${offset}, append: ${append}`);
       
       const response = await fetch(url);
+      
+      // Verificar si la respuesta es exitosa
+      if (!response.ok) {
+        console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`❌ Response body: ${errorText.substring(0, 200)}...`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const json = await response.json();
       
       if (json.status === 200 && json.data) {
@@ -165,7 +173,6 @@ const HomeScreen = () => {
         if (adaptedData.length > 0) {
           const recipeIds = adaptedData.map((recipe: Recipe) => recipe.id);
           await ratingCache.loadMultipleRatings(recipeIds);
-          setRatingsLoaded(prev => !prev);
         }
       } else {
         console.error('Error en backend:', json.message);
@@ -173,6 +180,9 @@ const HomeScreen = () => {
       }
     } catch (error) {
       console.error('Error fetching all recipes:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+      }
       setHasMoreData(false);
     }
   };
@@ -234,15 +244,14 @@ const HomeScreen = () => {
     }, [])
   );
 
-  // Escuchar cambios en el cache de valoraciones para re-render automático
+  // Escuchar cambios en el cache de valoraciones para re-render automático (con debounce)
   useEffect(() => {
-    setForceUpdate(prev => prev + 1);
-  }, [ratingCache.updateCounter]);
+    const timeout = setTimeout(() => {
+      setForceUpdate(prev => prev + 1);
+    }, 100); // Debounce de 100ms para evitar re-renders excesivos
 
-  // Force update cuando cambian las valoraciones cargadas
-  useEffect(() => {
-    setForceUpdate(prev => prev + 1);
-  }, [ratingsLoaded]);
+    return () => clearTimeout(timeout);
+  }, [ratingCache.updateCounter]);
 
   // Eliminamos el useEffect duplicado que causaba el loop
 
@@ -565,15 +574,23 @@ useEffect(() => {
           });
           
           // Solo cargar más si estamos en la lista principal (sin búsqueda ni filtros)
-          if (search.trim().length === 0 && 
+          const canLoadMore = search.trim().length === 0 && 
               filteredRecipes === null && 
               !loadingMore && 
               hasMoreData &&
-              !refreshing) {
+              !refreshing;
+              
+          if (canLoadMore) {
             console.log(`✅ Loading more recipes...`);
             loadMoreRecipes();
           } else {
-            console.log(`❌ Skipping load more due to conditions`);
+            console.log(`❌ Skipping load more due to conditions:`, {
+              hasSearch: search.trim().length > 0,
+              hasFilters: filteredRecipes !== null,
+              isLoadingMore: loadingMore,
+              hasMoreData,
+              isRefreshing: refreshing
+            });
           }
         }}
         onEndReachedThreshold={0.5}

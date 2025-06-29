@@ -10,6 +10,7 @@
     ],
     "version": "1.0.0",
     "orientation": "portrait",
+    "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -24,6 +25,7 @@
     "android": {
       "package": "com.mzkrantz.flavorfeast",
       "versionCode": 1,
+      "userInterfaceStyle": "light",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -31,7 +33,8 @@
     },
     "ios": {
       "bundleIdentifier": "com.mzkrantz.flavorfeast",
-      "buildNumber": "1.0.0"
+      "buildNumber": "1.0.0",
+      "userInterfaceStyle": "light"
     }
   }
 }
