@@ -10,52 +10,67 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons'; // Agrega este import
+import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Recipe } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import { useUserContext } from '../context/UserContext';
+import { useRatingCache } from '../context/RatingCacheContext';
 import StarRating from '../components/StarRating';
-//import { useFilterContext } from '../context/FilterContext';
 
 const MyRecipesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeForm'>>();
   const { deleteRecipe, getUserRecipes } = useRecipeContext();
   const { user } = useUserContext();
+  const { getRating, loadMultipleRatings, updateCounter } = useRatingCache();
 
   const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPrompt, setShowPrompt] = useState(false);
   const [promptType, setPromptType] = useState<'create' | 'delete' | null>(null);
   const [recipeToDelete, setRecipeToDelete] = useState<string | null>(null);
+  const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
 
   // Cargar las recetas del usuario desde la base de datos
+  const loadUserRecipes = async () => {
+    if (!user?.id) {
+      console.log('⚠️ No hay usuario autenticado');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log('👤 Cargando recetas del usuario:', user.id);
+      setLoading(true);
+      const recipes = await getUserRecipes(user.id);
+      console.log('✅ Recetas del usuario cargadas:', recipes.length);
+      setUserRecipes(recipes);
+
+      // Cargar valoraciones para las recetas del usuario
+      if (recipes.length > 0) {
+        const recipeIds = recipes.map(recipe => recipe.id);
+        console.log('🔍 Cargando valoraciones para recetas del usuario:', recipeIds);
+        await loadMultipleRatings(recipeIds);
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar recetas del usuario:', error);
+      setUserRecipes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadUserRecipes = async () => {
-      if (!user?.id) {
-        console.log('⚠️ No hay usuario autenticado');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        console.log('👤 Cargando recetas del usuario:', user.id);
-        setLoading(true);
-        const recipes = await getUserRecipes(user.id);
-        console.log('✅ Recetas del usuario cargadas:', recipes.length);
-        setUserRecipes(recipes);
-      } catch (error) {
-        console.error('❌ Error al cargar recetas del usuario:', error);
-        setUserRecipes([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadUserRecipes();
-  }, [user?.id, getUserRecipes]);
+  }, [user?.id]);
+
+  // Re-render automático cuando cambia el cache de valoraciones
+  useEffect(() => {
+    console.log('🔄 MyRecipesScreen: Cache de valoraciones actualizado, forzando re-render');
+    setForceUpdateCounter(prev => prev + 1);
+  }, [updateCounter]);
 
   // Refrescar recetas cuando la pantalla esté en foco (después de crear/editar)
   useFocusEffect(
@@ -67,6 +82,12 @@ const MyRecipesScreen = () => {
             const recipes = await getUserRecipes(user.id);
             setUserRecipes(recipes);
             console.log('✅ Lista de recetas actualizada:', recipes.length, 'recetas');
+            
+            // Recargar valoraciones después de actualizar recetas
+            if (recipes.length > 0) {
+              const recipeIds = recipes.map(recipe => recipe.id);
+              await loadMultipleRatings(recipeIds);
+            }
           } catch (error) {
             console.error('❌ Error al refrescar recetas:', error);
           }
@@ -76,7 +97,7 @@ const MyRecipesScreen = () => {
       // Pequeño delay para asegurar que la actualización del backend se haya completado
       const timeoutId = setTimeout(refreshUserRecipes, 500);
       return () => clearTimeout(timeoutId);
-    }, [user?.id, getUserRecipes, loading])
+    }, [user?.id, loading])
   );
 
   const goToEdit = (recipe: any) => {
@@ -187,37 +208,48 @@ const MyRecipesScreen = () => {
       ) : (
         <FlatList
           data={userRecipes}
-          keyExtractor={(item, index) => `recipe-${item.id}-${index}`}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
-            >
-              <Image source={item.image} style={styles.image} />
-              <View style={styles.content}>
-                <Text style={styles.name}>{item.title}</Text>
-                <StarRating rating={item.rating} size={14} />
-                <Text style={{ fontSize: 12, color: 'gray' }}>
-                  ID: {item.id} - createdByUser: {String(item.createdByUser)}
-                </Text>
-              </View>
-              <View style={styles.actions}>
-                <TouchableOpacity onPress={() => goToEdit(item)}>
-                  <Ionicons name="create-outline" size={22} color="#555" />
-                </TouchableOpacity>
+          keyExtractor={(item, index) => `recipe-${item.id}-${index}-${forceUpdateCounter}`}
+          renderItem={({ item }) => {
+            // Obtener valoración del cache
+            const ratingData = getRating(item.id);
+            const averageRating = ratingData?.promedio || 0;
+            const totalVotes = ratingData?.votos || 0;
 
-                <TouchableOpacity
-                  onPress={() => {
-                    setRecipeToDelete(item.id);
-                    setPromptType('delete');
-                    setShowPrompt(true);
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#c00" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          )}
+            return (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
+              >
+                <Image source={item.image} style={styles.image} />
+                <View style={styles.content}>
+                  <Text style={styles.name}>{item.title}</Text>
+                  <View style={styles.ratingContainer}>
+                    <StarRating rating={averageRating} size={14} />
+                    {totalVotes > 0 && (
+                      <Text style={styles.voteCount}>
+                        ({totalVotes} {totalVotes === 1 ? 'voto' : 'votos'})
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.actions}>
+                  <TouchableOpacity onPress={() => goToEdit(item)}>
+                    <Ionicons name="create-outline" size={22} color="#555" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setRecipeToDelete(item.id);
+                      setPromptType('delete');
+                      setShowPrompt(true);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#c00" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
           contentContainerStyle={{ paddingBottom: 120 }} // Más espacio para el botón
         />
       )}
@@ -317,6 +349,16 @@ const styles = StyleSheet.create({
   image: { width: 100, height: 100 },
   content: { flex: 1, padding: 10, justifyContent: 'center' },
   name: { fontSize: 16, fontWeight: 'bold' },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  voteCount: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 6,
+  },
   rating: { marginTop: 4, color: '#f1c40f' },
   actions: {
     justifyContent: 'space-around',
