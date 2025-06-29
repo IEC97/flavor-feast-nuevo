@@ -365,7 +365,7 @@ useEffect(() => {
             ? filteredRecipes
             : sorted
         }
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => `home-recipe-${item.id}-${index}`}
         renderItem={renderRecipe}
         contentContainerStyle={{ ...styles.listContainer, paddingBottom: 100 }}
         showsVerticalScrollIndicator={true}

@@ -224,7 +224,7 @@ const AdminScreen = () => {
       ) : (
         <FlatList
           data={recipes}
-          keyExtractor={(item) => item.idReceta.toString()}
+          keyExtractor={(item, index) => `admin-recipe-${item.idReceta}-${index}`}
           renderItem={renderRecipe}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
