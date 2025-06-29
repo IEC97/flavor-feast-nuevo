@@ -16,9 +16,43 @@ import { useRecipeContext } from '../context/RecipeContext';
 
 const FavoritesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeDetails'>>();
-  const { favorites, toggleFavorite } = useRecipeContext();
+  //const { favorites, toggleFavorite } = useRecipeContext();
+  
+  const { favorites, toggleFavorite, isFavorite } = useRecipeContext();
 
+
+  
+  
+  
+  
   const renderFavorite = ({ item }: any) => (
+    <View style={styles.recipeCard}>
+      <Image source={item.image} style={styles.recipeImage} />
+      <View style={styles.recipeInfo}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
+        >
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.author}>Por: {item.author}</Text>
+          <Text style={styles.rating}>
+            {'⭐'.repeat(item.rating)}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
+        <Ionicons
+          name={isFavorite(item.id) ? 'heart' : 'heart-outline'}
+          size={24}
+          color="red"
+        />
+      </TouchableOpacity>
+    </View>
+  );
+
+
+
+
+  /* const renderFavorite = ({ item }: any) => (
     <TouchableOpacity
       style={styles.recipeCard}
       onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
@@ -33,9 +67,28 @@ const FavoritesScreen = () => {
         <Ionicons name="heart" size={24} color="red" />
       </TouchableOpacity>
     </TouchableOpacity>
+  ); */
+
+
+  
+  return (
+    <View style={styles.container}>
+      <Text style={styles.heading}>Favoritos</Text>
+        {favorites.length === 0 ? (
+          <Text style={styles.emptyText}>No tenés recetas favoritas aún.</Text>
+        ) : (
+          <FlatList
+            data={favorites}
+            keyExtractor={(item) => item.id}
+            renderItem={renderFavorite}
+            contentContainerStyle={styles.listContainer}
+          />
+        )}
+      </View>
   );
 
-  return (
+
+  /* return (
     <View style={styles.container}>
       <Text style={styles.heading}>Favoritos</Text>
       {favorites.length === 0 ? (
@@ -49,7 +102,7 @@ const FavoritesScreen = () => {
         />
       )}
     </View>
-  );
+  ); */
 };
 
 const styles = StyleSheet.create({
