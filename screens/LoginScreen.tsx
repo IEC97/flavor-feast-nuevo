@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 import { useUser } from '../context/UserContext';
 import logo from '../assets/logo.png';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -43,14 +44,45 @@ const LoginScreen = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
 
-  //const { login } = useUser();
   const { login, user } = useUser();
+
+  // Cargar credenciales al iniciar
+  useEffect(() => {
+    const loadRememberedCredentials = async () => {
+      try {
+        const savedEmail = await AsyncStorage.getItem('rememberedEmail');
+        const savedPassword = await AsyncStorage.getItem('rememberedPassword');
+
+        if (savedEmail && savedPassword) {
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+          setRememberMe(true);
+        }
+      } catch (error) {
+        console.error('Error al cargar credenciales guardadas', error);
+      }
+    };
+
+    loadRememberedCredentials();
+  }, []);
 
   const handleLogin = async () => {
     const success = await login(email, password);
     console.log('Login success:', success);
-    //console.log('Usuario después de login:', user);
+
     if (success) {
+      try {
+        if (rememberMe) {
+          await AsyncStorage.setItem('rememberedEmail', email);
+          await AsyncStorage.setItem('rememberedPassword', password);
+        } else {
+          await AsyncStorage.removeItem('rememberedEmail');
+          await AsyncStorage.removeItem('rememberedPassword');
+        }
+      } catch (storageError) {
+        console.error('Error al guardar o borrar credenciales:', storageError);
+      }
+
       navigation.navigate('HomeTabs');
     } else {
       setError('El usuario o la contraseña son incorrectos');
@@ -77,7 +109,6 @@ const LoginScreen = () => {
         onChangeText={setPassword}
       />
 
-      {/* Checkbox personalizado */}
       <CustomCheckbox
         isChecked={rememberMe}
         onToggle={() => setRememberMe(!rememberMe)}
@@ -90,9 +121,7 @@ const LoginScreen = () => {
         <Text style={styles.loginText}>Iniciar sesión</Text>
       </TouchableOpacity>
 
-      {/* Enlaces */}
       <View style={styles.linksRow}>
-
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
           <Text style={[styles.link]}>
             ¿Olvidaste la contraseña?
@@ -107,11 +136,12 @@ const LoginScreen = () => {
 
         <View style={{ flexDirection: 'row', marginTop: 5, justifyContent: 'center' }}>
           <TouchableOpacity onPress={() => navigation.navigate('RegisterInfo')}>
-          <Text style={{ color: '#0000FF', fontWeight: 'bold' }}>¿No tenes una cuenta? ¡Registrate!</Text>
+            <Text style={{ color: '#0000FF', fontWeight: 'bold' }}>
+              ¿No tenes una cuenta? ¡Registrate!
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
-
     </View>
   );
 };
