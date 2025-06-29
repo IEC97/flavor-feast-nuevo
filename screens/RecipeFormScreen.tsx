@@ -9,16 +9,14 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useRecipeContext } from '../context/RecipeContext';
-//import MyRecipesScreen from '../screens/MyRecipesScreen';
 import { Recipe, RootStackParamList, AvailableIngredient } from '../types';
-import { useUserContext } from '../context/UserContext'; // <-- Agrega este import
+import { useUserContext } from '../context/UserContext';
 import { Picker } from '@react-native-picker/picker';
-import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'react-native';
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
@@ -57,11 +55,11 @@ const RecipeFormScreen = () => {
   const [loadingRecipeDetails, setLoadingRecipeDetails] = useState(false);
   const editingRecipe: Recipe | undefined = route.params?.recipe;
 
-  const [imageUri, setImageUri] = useState<string | null>(() => {
+  const [imageUrl, setImageUrl] = useState<string>(() => {
     if (editingRecipe?.image && typeof editingRecipe.image === 'object' && 'uri' in editingRecipe.image) {
-      return editingRecipe.image.uri || null;
+      return editingRecipe.image.uri || '';
     }
-    return null;
+    return '';
   });
 
   //const editingRecipe: Recipe | undefined = route.params?.recipe;
@@ -106,7 +104,6 @@ const RecipeFormScreen = () => {
     loadAvailableIngredients();
   }, [getAvailableIngredients]);
 
-  
   useEffect(() => {
     if (editingRecipe) {
       // Cargar datos actualizados desde el backend al editar
@@ -146,6 +143,11 @@ const RecipeFormScreen = () => {
             } else {
               setCategoryId('');
             }
+            
+            // Cargar URL de imagen si existe
+            if (completeRecipe.image && typeof completeRecipe.image === 'object' && 'uri' in completeRecipe.image) {
+              setImageUrl(completeRecipe.image.uri || '');
+            }
           } else {
             console.log('⚠️ No se pudieron cargar detalles, usando datos locales');
             console.log('🏷️ CategoryId de receta local:', editingRecipe.categoryId, '(tipo:', typeof editingRecipe.categoryId, ')');
@@ -182,12 +184,6 @@ const RecipeFormScreen = () => {
     }
   }, [editingRecipe, getRecipeDetails]);
 
-  useEffect(() => {
-    (async () => {
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    })();
-  }, []);
-
   if (checkingUser || loadingRecipeDetails) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -210,15 +206,18 @@ const RecipeFormScreen = () => {
   }
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
-     console.log(result);
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
+    // Esta función ya no se necesita
+  };
+
+  const handleImageUrlChange = (url: string) => {
+    setImageUrl(url);
+  };
+
+  const getImageSource = () => {
+    if (imageUrl.trim()) {
+      return { uri: imageUrl };
     }
+    return require('../assets/placeholder.jpg');
   };
 
   /* const pickImage = async () => {
@@ -246,6 +245,12 @@ const RecipeFormScreen = () => {
         return;
       }
 
+      // Validar que la URL de imagen sea obligatoria
+      if (!imageUrl || imageUrl.trim() === '') {
+        Alert.alert('Error', 'Debe ingresar una URL de imagen válida.');
+        return;
+      }
+
       // Validar que categoryId sea un número válido
       const parsedCategoryId = parseInt(categoryId, 10);
       if (isNaN(parsedCategoryId)) {
@@ -268,10 +273,7 @@ const RecipeFormScreen = () => {
       description,
       rating: editingRecipe?.rating || 0,
       category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
-      //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
-      image: imageUri ? { uri: imageUri } : require('../assets/placeholder.jpg'),
-      //image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
-      //image: { uri: imageUri },
+      image: getImageSource(), // Usar la función para obtener la imagen correcta
       ingredients: convertIngredientsToRecipeFormat(ingredients, availableIngredients),
       steps,
       createdByUser: true,
@@ -336,7 +338,7 @@ const RecipeFormScreen = () => {
         rating: editingRecipe?.rating || 0,
         category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
         //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
-        image: imageUri ? { uri: imageUri } : (editingRecipe?.image || require('../assets/placeholder.jpg')),
+        image: getImageSource(), // Usar la función para obtener la imagen correcta
         ingredients: convertIngredientsToRecipeFormat(ingredients, availableIngredients),
         steps: steps.length > 0 ? steps : (editingRecipe?.steps || []),
         createdByUser: true,
@@ -372,15 +374,24 @@ const RecipeFormScreen = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       
-      {/* <Text style={styles.label}>Imagen de la receta *</Text> */}
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, marginBottom: 10, borderRadius: 8 }} />
-      ) : (
-        <Image source={require('../assets/placeholder.jpg')} style={{ width: '100%', height: 180, marginBottom: 10, borderRadius: 8 }} />
-      )}
-      <TouchableOpacity style={styles.secondaryButton} onPress={pickImage}>
-        <Text style={styles.secondaryText}>Seleccionar imagen</Text>
-      </TouchableOpacity>
+      {/* Sección de imagen simplificada - Solo URL */}
+      <Text style={styles.label}>Imagen de la receta *</Text>
+      
+      {/* Vista previa de la imagen */}
+      <Image source={getImageSource()} style={styles.imagePreview} />
+
+      {/* Campo para URL de imagen */}
+      <TextInput
+        style={styles.input}
+        placeholder="URL de imagen OBLIGATORIA (ej: https://ejemplo.com/imagen.jpg)"
+        value={imageUrl}
+        onChangeText={handleImageUrlChange}
+        keyboardType="url"
+        autoCapitalize="none"
+      />
+      <Text style={styles.helperText}>
+        Campo obligatorio. Asegúrate de que la URL termine en .jpg, .png, .gif o .webp
+      </Text>
 
       <Text style={styles.label}>Título *</Text>
       <TextInput style={styles.input} value={title} onChangeText={setTitle} />
@@ -571,6 +582,21 @@ const styles = StyleSheet.create({
   multiline: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  // Estilos para imagen
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    marginBottom: 10,
+    fontStyle: 'italic',
   },
   submitButton: {
     marginTop: 15,
