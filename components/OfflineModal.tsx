@@ -5,40 +5,24 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
+  BackHandler,
 } from 'react-native';
-import { useNetworkContext } from '../context/NetworkContext';
 
 interface OfflineModalProps {
   visible: boolean;
-  onRetry?: () => void;
-  onGoBack?: () => void;
-  canGoBack?: boolean;
+  onRetry: () => void;
+  onContinueOffline: () => void;
+  onExitApp: () => void;
   message?: string;
 }
 
 export const OfflineModal: React.FC<OfflineModalProps> = ({
   visible,
   onRetry,
-  onGoBack,
-  canGoBack = true,
+  onContinueOffline,
+  onExitApp,
   message = 'No tienes conexión a internet. Algunas funciones pueden no estar disponibles.',
 }) => {
-  const { retryConnection } = useNetworkContext();
-
-  const handleRetry = () => {
-    retryConnection();
-    if (onRetry) {
-      onRetry();
-    }
-  };
-
-  const handleGoBack = () => {
-    if (onGoBack) {
-      onGoBack();
-    }
-  };
-
   return (
     <Modal
       visible={visible}
@@ -46,9 +30,8 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
       animationType="fade"
       onRequestClose={() => {
         // En Android, esto se llama cuando se presiona el botón de atrás
-        if (canGoBack && onGoBack) {
-          onGoBack();
-        }
+        // Por defecto, salir de la app
+        onExitApp();
       }}
     >
       <View style={styles.overlay}>
@@ -57,25 +40,30 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
             <Text style={styles.icon}>📵</Text>
           </View>
           
-          <Text style={styles.title}>Sin conexión</Text>
+          <Text style={styles.title}>Sin conexión a internet</Text>
           <Text style={styles.message}>{message}</Text>
           
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
               style={[styles.button, styles.retryButton]}
-              onPress={handleRetry}
+              onPress={onRetry}
             >
-              <Text style={styles.retryButtonText}>Reintentar</Text>
+              <Text style={styles.retryButtonText}>🔄 Reintentar</Text>
             </TouchableOpacity>
             
-            {canGoBack && (
-              <TouchableOpacity
-                style={[styles.button, styles.backButton]}
-                onPress={handleGoBack}
-              >
-                <Text style={styles.backButtonText}>Volver</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.button, styles.continueButton]}
+              onPress={onContinueOffline}
+            >
+              <Text style={styles.continueButtonText}>📱 Continuar sin conexión</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.button, styles.exitButton]}
+              onPress={onExitApp}
+            >
+              <Text style={styles.exitButtonText}>🚪 Salir de la app</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -86,35 +74,35 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modal: {
     backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
+    borderRadius: 20,
+    padding: 25,
     width: '100%',
-    maxWidth: 300,
+    maxWidth: 320,
     alignItems: 'center',
-    elevation: 5,
+    elevation: 10,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 5,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
   },
   iconContainer: {
     marginBottom: 15,
   },
   icon: {
-    fontSize: 48,
+    fontSize: 60,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 10,
@@ -124,17 +112,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 25,
     lineHeight: 22,
   },
   buttonsContainer: {
     width: '100%',
-    gap: 10,
+    gap: 12,
   },
   button: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   retryButton: {
@@ -145,13 +133,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  backButton: {
+  continueButton: {
+    backgroundColor: '#34C759',
+  },
+  continueButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  exitButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#FF3B30',
   },
-  backButtonText: {
-    color: '#666',
+  exitButtonText: {
+    color: '#FF3B30',
     fontSize: 16,
     fontWeight: '500',
   },
