@@ -18,6 +18,7 @@ type RecipeContextType = {
   deleteRecipe: (id: string) => Promise<boolean>;
   toggleFavorite: (recipe: Recipe) => void;
   isFavorite: (id: string) => boolean;
+  refreshFavorites: () => Promise<void>;
   getRecipeIngredients: (recipeId: string) => Promise<any[]>;
   getRecipeSteps: (recipeId: string) => Promise<any[]>;
   getRecipeDetails: (recipeId: string) => Promise<Recipe | null>;
@@ -55,13 +56,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         const json = await response.json();
 
         if (json.status === 200 && Array.isArray(json.data)) {
-          console.log('🔍 Ejemplo de datos del backend:', json.data[0] ? {
-            idReceta: json.data[0].idReceta,
-            nombre: json.data[0].nombre,
-            tipoId: json.data[0].tipoId,
-            tipo: json.data[0].tipo
-          } : 'No hay datos');
-          
           const mapped = json.data.map((r: any): Recipe => ({
             id: r.idReceta.toString(), // Asegurar que sea string
             title: r.nombre,
@@ -85,7 +79,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             userId: r.idUsuario, // Guardamos el ID del usuario para comparar después
           }));
 
-          console.log('📥 Recetas cargadas desde backend:', mapped.length);
+          console.log('✅ Recetas cargadas:', mapped.length);
           setRecipes(mapped);
         } else {
           console.error('Error al cargar recetas:', json.message);
@@ -113,22 +107,13 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   // Actualizar createdByUser cuando el usuario esté disponible
   useEffect(() => {
     if (user?.id) {
-      console.log('🔄 Actualizando createdByUser para usuario ID:', user.id);
-      
-      // Cargar recetas del usuario y marcarlas correctamente
       const loadUserRecipesAndMark = async () => {
         try {
-          // Obtener las recetas específicas del usuario
           const userRecipes = await getUserRecipes(user.id);
-          console.log('📋 Recetas del usuario encontradas:', userRecipes.length);
+          console.log('✅ Recetas del usuario:', userRecipes.length);
           
-          // Actualizar el estado de recetas
           setRecipes(prev => {
-            // Crear un mapa de las recetas del usuario para búsqueda rápida
             const userRecipeIds = new Set(userRecipes.map(r => r.id.toString()));
-            console.log('🎯 Recetas del usuario marcadas:', userRecipeIds.size);
-            
-            // Actualizar recetas existentes y agregar las que falten
             const existingRecipeIds = new Set(prev.map(r => r.id.toString()));
             const recipesToAdd = userRecipes.filter(ur => !existingRecipeIds.has(ur.id.toString()));
             
@@ -142,31 +127,20 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
               };
             });
             
-            // Agregar recetas del usuario que no estén en la lista general
             const finalRecipes = [...updated, ...recipesToAdd];
-            
-            const userRecipesMarked = finalRecipes.filter(r => r.createdByUser);
-            console.log('✅ Recetas marcadas como del usuario:', userRecipesMarked.length);
             
             return finalRecipes;
           });
         } catch (error) {
-          console.error('❌ Error al cargar y marcar recetas del usuario:', error);
+          console.error('❌ Error al cargar recetas del usuario:', error);
         }
       };
       
       loadUserRecipesAndMark();
     }
-  }, [user?.id, recipes.length]); // Add recipes.length as dependency
+  }, [user?.id, recipes.length]);
 
   const addRecipe = async (recipe: Recipe) => {
-    console.log('🍳 Datos de la receta recibida:', {
-      title: recipe.title,
-      categoryId: recipe.categoryId,
-      servings: recipe.servings,
-      description: recipe.description
-    });
-    
     if (!user?.id) {
       console.error('No hay usuario autenticado');
       return;
@@ -482,31 +456,37 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   
   const getFavoritesFromBackend = async (userId: string): Promise<Recipe[]> => {
     try {
-      const url = `${API_BASE_URL}/users/${userId}/favorites`;
+      const baseUrl = API_BASE_URL.replace('?path=/api', '');
+      const url = `${baseUrl}?path=/api/users/${userId}/favorites`;
+      
       const response = await fetch(url);
       const json = await response.json();
 
-      if (json.status === 200 && Array.isArray(json.data)) {
-        const mapped = json.data.map((r: any): Recipe => ({
+      if (response.ok && json.status === 200 && json.data?.recetas && Array.isArray(json.data.recetas)) {
+        const mapped = json.data.recetas.map((r: any): Recipe => ({
           id: r.idReceta.toString(),
           title: r.nombre,
-          author: r.usuario || 'Desconocido',
-          rating: r.puntuacion || 5,
-          category: r.tipo || 'Sin categoría',
-          image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
+          author: r.usuario || 'Autor desconocido',
+          rating: 5,
+          category: 'Sin categoría',
+          image: r.imagenMiniatura ? { uri: r.imagenMiniatura } : require('../assets/placeholder.jpg'),
           ingredients: [],
           steps: [],
           createdByUser: false,
-          createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),
-          categoryId: r.tipoId,
-          servings: r.porciones,
-          userId: r.idUsuario,
+          createdAt: r.fechaPublicacion ? new Date(r.fechaPublicacion).getTime() : Date.now(),
+          categoryId: r.tipo,
+          servings: 1,
+          userId: 0,
         }));
+        
+        console.log('✅ Favoritos cargados:', mapped.length);
         return mapped;
+      } else {
+        console.error('❌ Error al obtener favoritos:', json.message || 'Error del servidor');
+        return [];
       }
-      return [];
     } catch (error) {
-      console.error('❌ Error al obtener favoritos del backend:', error);
+      console.error('❌ Error de conexión al obtener favoritos:', error);
       return [];
     }
   };
@@ -514,41 +494,81 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   
-  const toggleFavorite = (recipe: Recipe) => {
-      if (!user?.id) {
-        console.error('⚠️ No hay usuario autenticado');
-        return;
-      }
+  const toggleFavorite = async (recipe: Recipe) => {
+    if (!user?.id) {
+      console.error('⚠️ No hay usuario autenticado');
+      return;
+    }
 
-      setFavorites((prev) => {
-        const exists = prev.some((r) => r.id === recipe.id);
-        if (exists) {
-          removeFavoriteFromBackend(user.id, recipe.id);
-          return prev.filter((r) => r.id !== recipe.id);
-        } else {
-          addFavoriteToBackend(user.id, recipe.id);
-        return [...prev, recipe];
+    const exists = favorites.some((r) => r.id === recipe.id);
+    console.log(`${exists ? '🗑️' : '❤️'} ${exists ? 'Eliminando' : 'Agregando'} favorito: ${recipe.title}`);
+
+    try {
+      if (exists) {
+        const success = await removeFavoriteFromBackend(user.id, recipe.id);
+        if (success) {
+          setFavorites((prev) => prev.filter((r) => r.id !== recipe.id));
+          console.log('✅ Favorito eliminado');
         }
-    });
+      } else {
+        const success = await addFavoriteToBackend(user.id, recipe.id);
+        if (success) {
+          setFavorites((prev) => [...prev, recipe]);
+          console.log('✅ Favorito agregado');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error al actualizar favorito:', error);
+    }
   };
 
   
-  const addFavoriteToBackend = async (userId: string, recipeId: string) => {
-    const url = `${API_BASE_URL}/users/${userId}/favorites/${recipeId}`;
+  const addFavoriteToBackend = async (userId: string, recipeId: string): Promise<boolean> => {
+    const baseUrl = API_BASE_URL.replace('?path=/api', '');
+    const url = `${baseUrl}?path=/api/users/${userId}/favorites/${recipeId}`;
+    
     try {
-      await fetch(url, { method: 'POST' });
+      const response = await fetch(url, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const json = await response.json();
+      
+      if (response.ok && (json.status === 200 || json.status === 201)) {
+        return true;
+      } else {
+        console.error('❌ Error al agregar favorito:', json.message || 'Error del servidor');
+        return false;
+      }
     } catch (error) {
-      console.error('❌ Error al agregar favorito:', error);
+      console.error('❌ Error de conexión al agregar favorito:', error);
+      return false;
     }
   };
 
 
-  const removeFavoriteFromBackend = async (userId: string, recipeId: string) => {
-    const url = `${API_BASE_URL}/users/${userId}/favorites/${recipeId}&method=DELETE`;
+  const removeFavoriteFromBackend = async (userId: string, recipeId: string): Promise<boolean> => {
+    const baseUrl = API_BASE_URL.replace('?path=/api', '');
+    const url = `${baseUrl}?path=/api/users/${userId}/favorites/${recipeId}&method=DELETE`;
+    
     try {
-      await fetch(url, { method: 'POST' });
+      const response = await fetch(url, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const json = await response.json();
+      
+      if (response.ok && (json.status === 200 || json.status === 204)) {
+        return true;
+      } else {
+        console.error('❌ Error al eliminar favorito:', json.message || 'Error del servidor');
+        return false;
+      }
     } catch (error) {
-      console.error('❌ Error al eliminar favorito:', error);
+      console.error('❌ Error de conexión al eliminar favorito:', error);
+      return false;
     }
   };
 
@@ -562,6 +582,14 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
   const isFavorite = (id: string) => {
     return favorites.some((r) => r.id === id);
+  };
+
+  const refreshFavorites = async () => {
+    if (!user?.id) return;
+    
+    console.log('🔄 Refrescando favoritos...');
+    const favs = await getFavoritesFromBackend(user.id);
+    setFavorites(favs);
   };
 
   const getAvailableIngredients = async (): Promise<AvailableIngredient[]> => {
@@ -767,7 +795,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <RecipeContext.Provider
-      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes, refreshUserRecipesStatus }}
+      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, refreshFavorites, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes, refreshUserRecipesStatus }}
     >
       {children}
     </RecipeContext.Provider>
