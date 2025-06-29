@@ -126,7 +126,10 @@ const HomeScreen = () => {
     try {
       // Calcular offset basado en la página actual
       const offset = (page - 1) * PAGE_SIZE;
+      // Usar un endpoint que mantenga orden consistente sin parámetros de orden adicionales
       const url = `${API_BASE_URL}/recipes&limit=${PAGE_SIZE}&offset=${offset}`;
+      
+      console.log(`📄 Fetching page ${page}, offset: ${offset}, append: ${append}`);
       
       const response = await fetch(url);
       const json = await response.json();
@@ -138,12 +141,20 @@ const HomeScreen = () => {
           image: { uri: item.imagen },
           author: item.usuario,
           createdAt: new Date(item.fechaPublicacion).getTime(),
-          rating: 0, // No usar rating hardcodeado
+          rating: 0,
         }));
         
+        console.log(`✅ Received ${adaptedData.length} recipes for page ${page}`);
+        console.log(`📋 Recipe IDs: ${adaptedData.map((r: Recipe) => r.id).join(', ')}`);
+        
         if (append) {
-          setAllRecipes(prev => [...prev, ...adaptedData]);
+          setAllRecipes(prev => {
+            const newRecipes = [...prev, ...adaptedData];
+            console.log(`📊 Total recipes after append: ${newRecipes.length}`);
+            return newRecipes;
+          });
         } else {
+          console.log(`🔄 Replacing recipes with ${adaptedData.length} new recipes`);
           setAllRecipes(adaptedData);
         }
         
@@ -154,8 +165,6 @@ const HomeScreen = () => {
         if (adaptedData.length > 0) {
           const recipeIds = adaptedData.map((recipe: Recipe) => recipe.id);
           await ratingCache.loadMultipleRatings(recipeIds);
-          
-          // Force re-render para actualizar las valoraciones
           setRatingsLoaded(prev => !prev);
         }
       } else {
@@ -170,22 +179,38 @@ const HomeScreen = () => {
 
   // Función para cargar más recetas (infinite scroll)
   const loadMoreRecipes = async () => {
-    if (loadingMore || !hasMoreData) return;
+    if (loadingMore || !hasMoreData) {
+      console.log(`❌ Skipping loadMore: loadingMore=${loadingMore}, hasMoreData=${hasMoreData}`);
+      return;
+    }
+    
+    const nextPage = currentPage + 1;
+    console.log(`📄 Loading page ${nextPage} (current total: ${allRecipes.length} recipes)`);
     
     setLoadingMore(true);
-    const nextPage = currentPage + 1;
     await fetchAllRecipes(nextPage, true); // append = true
     setCurrentPage(nextPage);
     setLoadingMore(false);
+    
+    console.log(`✅ Finished loading page ${nextPage}`);
+  };
+
+  // Función para resetear completamente el estado
+  const resetPagination = () => {
+    console.log('🔄 Resetting pagination state');
+    setCurrentPage(1);
+    setLoadingMore(false);
+    setHasMoreData(true);
+    setAllRecipes([]);
   };
 
   // Actualizar página
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      // Resetear paginación y cache de valoraciones
-      setCurrentPage(1);
-      setHasMoreData(true);
+      console.log('🔄 Starting refresh...');
+      // Resetear completamente el estado de paginación
+      resetPagination();
       ratingCache.clearCache(); // Limpiar cache de valoraciones
       
       // Cargar tanto las últimas 3 recetas como la primera página de todas las recetas
@@ -193,6 +218,7 @@ const HomeScreen = () => {
         fetchLatestThree(),
         fetchAllRecipes(1, false) // Cargar primera página de la lista principal
       ]);
+      console.log('✅ Refresh completed');
     } catch (error) {
       console.error('❌ Error al actualizar:', error);
     } finally {
@@ -307,7 +333,7 @@ useEffect(() => {
   if (tipoId) params.push(`tipo=${tipoId}`);
   if (incluirIds) params.push(`incluirIngredientes=${incluirIds}`);
   if (excluirIds) params.push(`excluirIngredientes=${excluirIds}`);
-  params.push('orden=fecha_asc');
+  params.push('orden=fecha_desc'); // Cambiar a descendente para consistencia
   url += '&' + params.join('&');
 
   let cancelled = false;
@@ -361,35 +387,30 @@ useEffect(() => {
       if (sortOrder === 'Mas antiguas') return (a.createdAt || 0) - (b.createdAt || 0);
       if (sortOrder === 'Nombre A-Z') return a.title.localeCompare(b.title);
       if (sortOrder === 'Nombre Z-A') return b.title.localeCompare(a.title);
-      return 0;
+      // Por defecto, ordenar por más recientes (consistente con el backend)
+      return (b.createdAt || 0) - (a.createdAt || 0);
     });
   };
 
   const filtered = useMemo(() => {
+    // Si hay búsqueda activa, no filtrar allRecipes, usar searchResults
+    if (search.trim().length > 0) {
+      return []; // No filtrar allRecipes cuando hay búsqueda
+    }
+    
+    // Para filtros aplicados, usar filteredRecipes, no allRecipes
+    if (filteredRecipes !== null) {
+      return []; // No filtrar allRecipes cuando hay filtros aplicados
+    }
+    
+    // Solo aplicar filtros locales cuando usamos allRecipes (sin búsqueda ni filtros de backend)
     return allRecipes.filter((r: Recipe) => {
-      const bySearch = r.title.toLowerCase().includes(search.toLowerCase());
       const byAuthor =
         !filters.user || r.author?.toLowerCase().includes(filters.user.toLowerCase());
-      const byCategory =
-        filters.categories.length === 0 || filters.categories.includes(r.category);
-      const byInclude =
-        filters.include.length === 0 ||
-        filters.include.every((inc) =>
-          r.ingredients?.some((i) =>
-            i.name.toLowerCase().includes(inc.toLowerCase())
-          )
-        );
-      const byExclude =
-        filters.exclude.length === 0 ||
-        filters.exclude.every((exc) =>
-          !r.ingredients?.some((i) =>
-            i.name.toLowerCase().includes(exc.toLowerCase())
-          )
-        );
-
-      return bySearch && byAuthor && byCategory && byInclude && byExclude;
+      
+      return byAuthor;
     });
-  }, [allRecipes, filters, search]);
+  }, [allRecipes, filters, search, searchResults, filteredRecipes]);
 
   const sorted = useMemo(() => applySort(filtered), [filtered, sortOrder]);
 
@@ -513,29 +534,49 @@ useEffect(() => {
           isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
         }
         ListFooterComponent={() => {
-          if (loadingMore) {
-            return (
-              <View style={{ padding: 20, alignItems: 'center' }}>
-                <Text>Cargando más recetas...</Text>
-              </View>
-            );
-          }
-          if (!hasMoreData && allRecipes.length > 0) {
-            return (
-              <View style={{ padding: 20, alignItems: 'center' }}>
-                <Text style={{ color: '#666' }}>No hay más recetas</Text>
-              </View>
-            );
+          // Solo mostrar loading cuando estamos en la lista principal
+          if (search.trim().length === 0 && filteredRecipes === null) {
+            if (loadingMore) {
+              return (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text>Cargando más recetas...</Text>
+                </View>
+              );
+            }
+            if (!hasMoreData && allRecipes.length > 0) {
+              return (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ color: '#666' }}>No hay más recetas</Text>
+                </View>
+              );
+            }
           }
           return null;
         }}
-        onEndReached={() => {
-          // Solo cargar más si no estamos filtrando o buscando
-          if (search.trim().length === 0 && filteredRecipes === null) {
+        onEndReached={(info) => {
+          console.log(`🔽 onEndReached triggered:`, {
+            distanceFromEnd: info?.distanceFromEnd,
+            search: search.trim(),
+            hasFilters: filteredRecipes !== null,
+            loadingMore,
+            hasMoreData,
+            refreshing,
+            currentRecipeCount: allRecipes.length
+          });
+          
+          // Solo cargar más si estamos en la lista principal (sin búsqueda ni filtros)
+          if (search.trim().length === 0 && 
+              filteredRecipes === null && 
+              !loadingMore && 
+              hasMoreData &&
+              !refreshing) {
+            console.log(`✅ Loading more recipes...`);
             loadMoreRecipes();
+          } else {
+            console.log(`❌ Skipping load more due to conditions`);
           }
         }}
-        onEndReachedThreshold={0.1}
+        onEndReachedThreshold={0.5}
         // Agregar espacio inferior para evitar superposición con TabBar
         contentInsetAdjustmentBehavior="automatic"
       />
