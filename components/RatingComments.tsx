@@ -17,7 +17,7 @@ import StarRating from './StarRating';
 interface RatingCommentsProps {
   recipeId: string;
   currentRating: number;
-  onRatingUpdate?: (newRating: number) => void;
+  onRatingUpdate?: (newRating: number, voteCount: number) => void;
 }
 
 const RatingComments: React.FC<RatingCommentsProps> = ({ 
@@ -114,8 +114,17 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
       if (json.status === 200 || json.status === 201) {
         setUserRating(rating);
         // Recargar la información de valoración después de valorar
-        await loadRatingInfo();
-        onRatingUpdate?.(ratingInfo.promedio);
+        const updatedResponse = await fetch(`${API_BASE_URL}/recipes/${recipeId}/puntuacion`);
+        const updatedJson = await updatedResponse.json();
+        
+        if (updatedJson.status === 200 && updatedJson.data) {
+          const newRatingInfo = {
+            promedio: updatedJson.data.promedio || 0,
+            cantidadVotos: updatedJson.data.cantidadVotos || 0
+          };
+          setRatingInfo(newRatingInfo);
+          onRatingUpdate?.(newRatingInfo.promedio, newRatingInfo.cantidadVotos);
+        }
         console.log('✅ Valoración guardada');
       } else {
         console.error('❌ Error al guardar valoración:', json.message);
@@ -194,15 +203,6 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Valoración promedio */}
-      <View style={styles.averageRating}>
-        <Text style={styles.ratingText}>Valoración promedio:</Text>
-        <StarRating rating={ratingInfo.promedio} size={20} />
-        <Text style={styles.ratingValue}>
-          ({ratingInfo.promedio.toFixed(1)} - {ratingInfo.cantidadVotos} {ratingInfo.cantidadVotos === 1 ? 'voto' : 'votos'})
-        </Text>
-      </View>
-
       {/* Valoración del usuario */}
       {user && (
         <View style={styles.userRating}>

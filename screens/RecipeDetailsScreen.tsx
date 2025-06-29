@@ -8,6 +8,7 @@ import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import RatingComments from '../components/RatingComments';
 import StarRating from '../components/StarRating';
+import { API_BASE_URL } from '../constants';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
@@ -21,6 +22,7 @@ const RecipeDetailsScreen = () => {
   const [recipeWithDetails, setRecipeWithDetails] = useState<Recipe>(recipe);
   const [loading, setLoading] = useState(false);
   const [averageRating, setAverageRating] = useState<number>(recipe.rating || 0);
+  const [voteCount, setVoteCount] = useState<number>(0);
 
   // Cargar ingredientes y pasos al entrar en la pantalla
   useEffect(() => {
@@ -29,11 +31,8 @@ const RecipeDetailsScreen = () => {
       try {
         console.log('🔍 Cargando detalles de receta:', recipe.id);
         
-        // Cargar detalles completos y valoración promedio en paralelo
-        const [completeRecipe, avgRating] = await Promise.all([
-          getRecipeDetails(recipe.id),
-          getRecipeAverageRating(recipe.id)
-        ]);
+        // Cargar detalles completos de la receta
+        const completeRecipe = await getRecipeDetails(recipe.id);
         
         if (completeRecipe) {
           setRecipeWithDetails(completeRecipe);
@@ -45,8 +44,15 @@ const RecipeDetailsScreen = () => {
           console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
         }
         
-        setAverageRating(avgRating);
-        console.log('✅ Valoración promedio cargada:', avgRating);
+        // Cargar información de valoración completa desde el endpoint
+        const ratingResponse = await fetch(`${API_BASE_URL}/recipes/${recipe.id}/puntuacion`);
+        const ratingJson = await ratingResponse.json();
+        
+        if (ratingJson.status === 200 && ratingJson.data) {
+          setAverageRating(ratingJson.data.promedio || 0);
+          setVoteCount(ratingJson.data.cantidadVotos || 0);
+          console.log('✅ Valoración promedio cargada:', ratingJson.data.promedio, 'con', ratingJson.data.cantidadVotos, 'votos');
+        }
         
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
@@ -78,7 +84,9 @@ const RecipeDetailsScreen = () => {
       <Text style={styles.meta}>Por: {recipeWithDetails.author}</Text>
       <View style={styles.ratingContainer}>
         <StarRating rating={averageRating} size={20} />
-        <Text style={styles.ratingText}>({averageRating.toFixed(1)})</Text>
+        <Text style={styles.ratingText}>
+          ({averageRating.toFixed(1)} - {voteCount} {voteCount === 1 ? 'voto' : 'votos'})
+        </Text>
       </View>
       <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
@@ -138,9 +146,10 @@ const RecipeDetailsScreen = () => {
       <RatingComments 
         recipeId={recipe.id}
         currentRating={averageRating}
-        onRatingUpdate={(newRating) => {
-          // Actualizar la valoración promedio cuando un usuario valore
+        onRatingUpdate={(newRating, newVoteCount) => {
+          // Actualizar la valoración promedio y cantidad de votos cuando un usuario valore
           setAverageRating(newRating);
+          setVoteCount(newVoteCount);
         }}
       />
 
