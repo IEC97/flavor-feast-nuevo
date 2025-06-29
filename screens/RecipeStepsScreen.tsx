@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   addStep: {
-    color: '#007AFF',
+    color: '#13162e',
     marginBottom: 20,
     fontSize: 16,
   },

@@ -48,4 +48,5 @@ export type RootStackParamList = {
   RecipeSteps: { recipe: Recipe; isEdit?: boolean };
   FilterScreen: undefined;
   SortOptions: undefined;
+  AdminScreen: undefined;
 };
