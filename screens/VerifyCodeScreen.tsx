@@ -93,6 +93,13 @@ const VerifyCodeScreen = () => {
         <Text style={styles.buttonText}>Verificar código</Text>
       </TouchableOpacity>
 
+      <View style={styles.linksContainer}>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.link}>Volver al inicio de sesión</Text>
+        </TouchableOpacity>
+      
+      </View>
+
       {/* <TouchableOpacity onPress={() => Alert.alert('Reenviar email', 'Funcionalidad pendiente')}>
         <Text style={styles.resend}>¿No recibiste el correo? Reenviar email</Text>
       </TouchableOpacity> */}
@@ -118,6 +125,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     color: '#555',
+  },
+  linksContainer: {
+    marginTop: 40,
+    alignItems: 'center',
+    gap: 10,
+  },
+  link: {
+    color: '#5b5bff',
+    textDecorationLine: 'underline',
+    textAlign: 'center',
   },
   codeContainer: {
     flexDirection: 'row',
