@@ -25,6 +25,7 @@ type RecipeContextType = {
   getAvailableIngredients: () => Promise<AvailableIngredient[]>;
   getUserRecipes: (userId: string) => Promise<Recipe[]>;
   refreshUserRecipesStatus: () => Promise<Recipe[]>;
+  getRecipeAverageRating: (recipeId: string) => Promise<number>;
 };
 
 const RecipeContext = createContext<RecipeContextType | undefined>(undefined);
@@ -793,9 +794,24 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const getRecipeAverageRating = async (recipeId: string): Promise<number> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/puntuacion`);
+      const json = await response.json();
+      
+      if (json.status === 200 && json.data) {
+        return json.data.promedio || 0;
+      }
+      return 0;
+    } catch (error) {
+      console.error('❌ Error al obtener valoración promedio:', error);
+      return 0;
+    }
+  };
+
   return (
     <RecipeContext.Provider
-      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, refreshFavorites, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes, refreshUserRecipesStatus }}
+      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, refreshFavorites, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes, refreshUserRecipesStatus, getRecipeAverageRating }}
     >
       {children}
     </RecipeContext.Provider>

@@ -6,12 +6,16 @@ import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
+import RatingComments from '../components/RatingComments';
+import StarRating from '../components/StarRating';
+import { useRatingCache } from '../context/RatingCacheContext';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
-  const { toggleFavorite, isFavorite, getRecipeDetails } = useRecipeContext();
+  const { toggleFavorite, isFavorite, getRecipeDetails, getRecipeAverageRating } = useRecipeContext();
+  const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
 
   const { fromEdit } = route.params || {};
 
@@ -25,6 +29,8 @@ const RecipeDetailsScreen = () => {
       setLoading(true);
       try {
         console.log('🔍 Cargando detalles de receta:', recipe.id);
+        
+        // Cargar detalles completos de la receta
         const completeRecipe = await getRecipeDetails(recipe.id);
         
         if (completeRecipe) {
@@ -36,6 +42,10 @@ const RecipeDetailsScreen = () => {
         } else {
           console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
         }
+        
+        // Cargar información de valoración usando el cache
+        await ratingCache.loadRating(recipe.id);
+        
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
       } finally {
@@ -44,9 +54,21 @@ const RecipeDetailsScreen = () => {
     };
 
     loadRecipeDetails();
-  }, [recipe.id, getRecipeDetails]);
+  }, [recipe.id, getRecipeDetails]); // Quitar ratingCache de las dependencias
 
   const adjustQuantity = (qty: number) => Math.round(qty * portions);
+
+  // Obtener datos de valoración del cache
+  const ratingData = ratingCache.getRating(recipe.id);
+  const averageRating = ratingData?.promedio || 0;
+  const voteCount = ratingData?.votos || 0;
+  const isRatingLoaded = ratingData !== undefined;
+
+  // Callback para actualizar la valoración cuando el usuario vota
+  const handleRatingUpdate = (newRating: number, newVoteCount: number) => {
+    console.log('🔄 Actualizando valoración:', newRating, 'votos:', newVoteCount);
+    ratingCache.updateRating(recipe.id, { promedio: newRating, votos: newVoteCount });
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -64,7 +86,22 @@ const RecipeDetailsScreen = () => {
 
       <Text style={styles.title}>{recipeWithDetails.title}</Text>
       <Text style={styles.meta}>Por: {recipeWithDetails.author}</Text>
-      <Text style={styles.rating}>{'⭐'.repeat(recipeWithDetails.rating)}</Text>
+      <View style={styles.ratingContainer}>
+        {isRatingLoaded ? (
+          voteCount > 0 ? (
+            <>
+              <StarRating rating={averageRating} size={20} />
+              <Text style={styles.ratingText}>
+                ({averageRating.toFixed(1)} - {voteCount} {voteCount === 1 ? 'voto' : 'votos'})
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.ratingText}>Sin valoraciones aún</Text>
+          )
+        ) : (
+          <Text style={styles.ratingText}>Cargando valoración...</Text>
+        )}
+      </View>
       <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
       <Text style={styles.section}>Ingredientes</Text>
@@ -118,6 +155,14 @@ const RecipeDetailsScreen = () => {
         )
       )}
 
+      {/* Valoración y Comentarios */}
+      <Text style={styles.section}>Valoración y Comentarios</Text>
+      <RatingComments 
+        recipeId={recipe.id}
+        currentRating={averageRating}
+        onRatingUpdate={handleRatingUpdate}
+      />
+
       {/* Botón solo si vienes de editar */}
     {fromEdit && (
       <TouchableOpacity
@@ -169,6 +214,16 @@ const styles = StyleSheet.create({
   meta: {
     color: '#555',
     marginBottom: 8,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ratingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
   },
   rating: {
     fontSize: 16,

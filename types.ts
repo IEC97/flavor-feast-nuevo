@@ -36,6 +36,24 @@ export type Recipe = {
   userId?: number; // ID del usuario que creó la receta
 };
 
+export type Comment = {
+  id: number; // IDComentario
+  description: string; // Descripcion
+  approved: boolean; // Aprobacion
+  userId?: number;
+  username?: string;
+  createdAt?: string;
+};
+
+export type Rating = {
+  id: number; // IDValoracion
+  userId: number; // IDUsuario
+  recipeId: number; // IDReceta
+  commentId?: number; // IDComentario
+  rating: number; // Puntuacion
+  comment?: Comment;
+};
+
 export type RootStackParamList = {
   Login: undefined;
   HomeTabs: { screen?: string } | undefined; 

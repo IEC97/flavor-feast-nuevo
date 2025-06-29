@@ -6,6 +6,7 @@ import { RecipeProvider } from './context/RecipeContext';
 import { FilterProvider } from './context/FilterContext';
 import { UserProvider } from './context/UserContext';
 import { NetworkProvider } from './context/NetworkContext';
+import { RatingCacheProvider } from './context/RatingCacheContext';
 import { NetworkWrapper } from './components/NetworkWrapper';
 
 export default function App(): React.ReactElement {
@@ -17,7 +18,9 @@ export default function App(): React.ReactElement {
         <NetworkWrapper>
           <UserProvider children={
             <RecipeProvider children={
-              <FilterProvider children={appNavigator} />
+              <FilterProvider children={
+                <RatingCacheProvider children={appNavigator} />
+              } />
             } />
           } />
         </NetworkWrapper>
