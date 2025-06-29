@@ -96,7 +96,7 @@ const FilterScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={24} />
       </TouchableOpacity>
@@ -162,6 +162,7 @@ const FilterScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  scrollContent: { paddingBottom: 40 },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   back: { marginBottom: 8 },
   title: { fontWeight: 'bold', fontSize: 20, marginBottom: 12 },
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 40,
   },
   chip: {
     backgroundColor: '#eee',
