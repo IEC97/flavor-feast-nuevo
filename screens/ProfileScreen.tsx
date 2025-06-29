@@ -46,6 +46,19 @@ const ProfileScreen = () => {
         >
           <Text style={styles.loginText}>Ir a Iniciar sesión</Text>
         </TouchableOpacity>
+
+        {/* Sección de Administrador */}
+        <View style={styles.adminSection}>
+          <Text style={styles.adminLabel}>
+            🧪 Modo administrador disponible para testing
+          </Text>
+          <TouchableOpacity
+            style={styles.adminBtn}
+            onPress={() => navigation.navigate('AdminScreen')}
+          >
+            <Text style={styles.adminText}>🔧 Acceder como Administrador</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -76,6 +89,19 @@ const ProfileScreen = () => {
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>Cerrar sesión</Text>
       </TouchableOpacity>
+
+      {/* Sección de Administrador */}
+      <View style={styles.adminSection}>
+        <Text style={styles.adminLabel}>
+          🧪 Modo administrador disponible para testing
+        </Text>
+        <TouchableOpacity
+          style={styles.adminBtn}
+          onPress={() => navigation.navigate('AdminScreen')}
+        >
+          <Text style={styles.adminText}>🔧 Acceder como Administrador</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -155,6 +181,45 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  // Estilos para la sección de administrador
+  adminSection: {
+    marginTop: 30,
+    width: '100%',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff4e6',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ffa726',
+  },
+  adminLabel: {
+    fontSize: 14,
+    color: '#e65100',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  adminBtn: {
+    backgroundColor: '#ff9800',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  adminText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
 

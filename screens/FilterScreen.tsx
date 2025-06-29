@@ -112,9 +112,9 @@ const FilterScreen = () => {
 
       <Text style={styles.section}>Ingredientes que incluye:</Text>
       <View style={styles.chipContainer}>
-        {ingredients.map((ing: any) => (
+        {ingredients.map((ing: any, index: number) => (
           <TouchableOpacity
-            key={ing.idIngrediente}
+            key={ing.idIngrediente || `include-ing-${index}`}
             style={[styles.chip, include.includes(ing.nombre) && styles.included]}
             onPress={() => toggle(include, setInclude, ing.nombre)}
           >
@@ -125,9 +125,9 @@ const FilterScreen = () => {
 
       <Text style={styles.section}>Ingredientes que excluye:</Text>
       <View style={styles.chipContainer}>
-        {ingredients.map((ing: any) => (
+        {ingredients.map((ing: any, index: number) => (
           <TouchableOpacity
-            key={ing.idIngrediente + '_exclude'}
+            key={`${ing.idIngrediente || index}_exclude`}
             style={[styles.chip, exclude.includes(ing.nombre) && styles.excluded]}
             onPress={() => toggle(exclude, setExclude, ing.nombre)}
           >
@@ -138,9 +138,9 @@ const FilterScreen = () => {
 
       <Text style={styles.section}>Tipo de Receta:</Text>
       <View style={styles.chipContainer}>
-        {categories.map((cat: any) => (
+        {categories.map((cat: any, index: number) => (
           <TouchableOpacity
-            key={cat.idCategoria}
+            key={cat.idTipo || cat.idCategoria || `category-${index}`}
             style={[styles.chip, selectedCategories.includes(cat.nombre) && styles.included]}
             onPress={() => toggle(selectedCategories, setSelectedCategories, cat.nombre)}
           >

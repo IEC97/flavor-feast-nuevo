@@ -1,65 +1,15 @@
 // navigation/TabNavigator.tsx
-import React, { useRef } from 'react';
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { TouchableOpacity, Alert, GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
 import HomeScreen from '../screens/HomeScreen';
 import MyRecipesScreen from '../screens/MyRecipesScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-type TabNavigatorProps = NativeStackNavigationProp<RootStackParamList, 'AdminScreen'>;
-
 const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
-  const navigation = useNavigation<TabNavigatorProps>();
-  
-  // Estados para la presión larga en el ícono de perfil
-  const pressStartTimeRef = useRef<number>(0);
-  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleProfilePressIn = () => {
-    pressStartTimeRef.current = Date.now();
-    
-    // Timer para mostrar feedback visual a los 2 segundos
-    pressTimerRef.current = setTimeout(() => {
-      // Aquí podrías agregar vibración o feedback visual si quieres
-      console.log('⏱️ Mantén presionado 1 segundo más para acceder al panel admin...');
-    }, 2000);
-  };
-
-  const handleProfilePressOut = () => {
-    const pressDuration = Date.now() - pressStartTimeRef.current;
-    
-    // Limpiar timer
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
-
-    if (pressDuration >= 3000) {
-      // Presión larga (3+ segundos) - Acceso admin
-      Alert.alert(
-        '🔐 Modo Administrador',
-        '¿Deseas acceder al panel de administración?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Acceder',
-            onPress: () => navigation.navigate('AdminScreen'),
-          },
-        ]
-      );
-    } else if (pressDuration < 2000) {
-      // Presión corta (menos de 2 segundos) - Navegar a perfil normal
-      // No hacer nada ya que el tab navigator se encargará de la navegación normal
-    }
-    // Entre 2-3 segundos no hace nada (zona intermedia)
-  };
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -74,17 +24,6 @@ const TabNavigator = () => {
             iconName = focused ? 'heart' : 'heart-outline';
           } else if (route.name === 'Perfil') {
             iconName = focused ? 'person' : 'person-outline';
-            // Para el ícono de perfil, envolver en TouchableOpacity para presión larga
-            return (
-              <TouchableOpacity 
-                onPressIn={handleProfilePressIn}
-                onPressOut={handleProfilePressOut}
-                activeOpacity={0.7}
-                style={{ padding: 4 }}
-              >
-                <Ionicons name={iconName} size={24} color={color} />
-              </TouchableOpacity>
-            );
           }
 
           return <Ionicons name={iconName} size={24} color={color} />;
