@@ -1,3 +1,3 @@
 // src/constants.ts
 export const API_BASE_URL =
-  'https://script.google.com/macros/s/AKfycbx3ni2QBgx9LAzRyVqdXAjAXkPNPBIAajTrHVyTwZbV0F26Q3odyre6tpkGSyToTsG--A/exec?path=/api';
+  'https://script.google.com/macros/s/AKfycbyBiN3JHtKMLGj932xa4DFhIDTgbcZA-G67p4OwAcZzyxKgaOa0wX5E1GRbFfL59Fkodg/exec?path=/api';
