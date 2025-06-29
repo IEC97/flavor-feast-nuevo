@@ -60,7 +60,7 @@ const FilterScreen = () => {
     const fetchData = async () => {
       try {
         const ingRes = await fetch(`${API_BASE_URL}/ingredients`);
-        const catRes = await fetch(`${API_BASE_URL}/categories`);
+        const catRes = await fetch(`${API_BASE_URL}/tipos`);
 
         const ingData = await ingRes.json();
         const catData = await catRes.json();
