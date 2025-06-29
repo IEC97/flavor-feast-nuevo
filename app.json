@@ -3,8 +3,35 @@
     "name": "Flavor Feast",
     "slug": "flavor-feast",
     "sdkVersion": "53.0.0",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "version": "1.0.0",
-    "orientation": "portrait"
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1da2f237-7c22-49be-a096-b1eefad4abe0"
+      }
+    },
+    "android": {
+      "package": "com.mzkrantz.flavorfeast",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.mzkrantz.flavorfeast",
+      "buildNumber": "1.0.0"
+    }
   }
 }
