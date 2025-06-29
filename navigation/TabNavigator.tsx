@@ -79,8 +79,8 @@ const TabNavigator = () => {
               <TouchableOpacity 
                 onPressIn={handleProfilePressIn}
                 onPressOut={handleProfilePressOut}
-                activeOpacity={1} // Sin efecto de opacidad
-                style={{ padding: 4, borderRadius: 0, backgroundColor: 'transparent' }}
+                activeOpacity={0.7}
+                style={{ padding: 4 }}
               >
                 <Ionicons name={iconName} size={24} color={color} />
               </TouchableOpacity>
@@ -122,8 +122,6 @@ const TabNavigator = () => {
         tabBarIconStyle: {
           marginBottom: 2,
         },
-        tabBarPressColor: 'transparent', // Eliminar efecto ripple en Android
-        tabBarPressOpacity: 1, // Sin efecto de opacidad al presionar
         tabBarHideOnKeyboard: true, // Ocultar cuando aparece el teclado
         lazy: false, // Cargar todas las pantallas para navegación fluida
         headerShown: false,

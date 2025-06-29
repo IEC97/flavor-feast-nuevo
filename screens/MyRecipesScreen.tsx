@@ -166,12 +166,12 @@ const MyRecipesScreen = () => {
 }; */
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <Text style={styles.title}>Mis Recetas</Text>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#23294c" />
+          <ActivityIndicator size="large" color="#13162e" />
           <Text style={styles.loadingText}>Cargando tus recetas...</Text>
         </View>
       ) : !user ? (
@@ -217,20 +217,22 @@ const MyRecipesScreen = () => {
               </View>
             </TouchableOpacity>
           )}
+          contentContainerStyle={{ paddingBottom: 120 }} // Más espacio para el botón
         />
       )}
 
-      <TouchableOpacity style={styles.button} onPress={goToCreate}>
-        <Text style={styles.buttonText}>Nueva receta</Text>
-      </TouchableOpacity>
-
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.button} onPress={goToCreate}>
+          <Text style={styles.buttonText}>Nueva receta</Text>
+        </TouchableOpacity>
+      </View>
 
       {showPrompt && (
         <View style={styles.promptOverlay}>
           <View style={styles.promptBox}>
             {promptType === 'create' ? (
               <>
-                <MaterialIcons name="add-box" size={32} color="#23294c" style={{ alignSelf: 'center' }} />
+                <MaterialIcons name="add-box" size={32} color="#13162e" style={{ alignSelf: 'center' }} />
                 <Text style={styles.promptText}>¿Deseas crear una Receta?</Text>
               </>
             ) : (
@@ -268,7 +270,7 @@ const MyRecipesScreen = () => {
         </View>
       )} */}
 
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -321,12 +323,27 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 10,
   },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 90, // Posicionado por encima de la TabBar
+    left: 16,
+    right: 16,
+    backgroundColor: 'transparent',
+  },
   button: {
-    backgroundColor: '#23294c',
+    backgroundColor: '#13162e',
     paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 30,
     alignItems: 'center',
-    marginTop: 10,
+    elevation: 8, // Mayor elevación para estar por encima de otros elementos
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   buttonText: {
     color: '#fff', fontWeight: 'bold', fontSize: 16,
@@ -363,7 +380,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   promptYes: {
-    backgroundColor: '#23294c',
+    backgroundColor: '#13162e',
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 28,
@@ -380,7 +397,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   promptNoText: {
-    color: '#23294c',
+    color: '#13162e',
     fontWeight: 'bold',
     fontSize: 16,
   },
