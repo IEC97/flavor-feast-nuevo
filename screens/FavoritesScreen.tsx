@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
+import StarRating from '../components/StarRating';
 
 const FavoritesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeDetails'>>();
@@ -34,9 +35,7 @@ const FavoritesScreen = () => {
         >
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.author}>Por: {item.author}</Text>
-          <Text style={styles.rating}>
-            {'⭐'.repeat(item.rating)}
-          </Text>
+          <StarRating rating={item.rating} size={14} />
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>

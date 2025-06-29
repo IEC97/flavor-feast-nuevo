@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Recipe } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import { useUserContext } from '../context/UserContext';
+import StarRating from '../components/StarRating';
 //import { useFilterContext } from '../context/FilterContext';
 
 const MyRecipesScreen = () => {
@@ -195,7 +196,7 @@ const MyRecipesScreen = () => {
               <Image source={item.image} style={styles.image} />
               <View style={styles.content}>
                 <Text style={styles.name}>{item.title}</Text>
-                <Text style={styles.rating}>{'⭐'.repeat(item.rating)}</Text>
+                <StarRating rating={item.rating} size={14} />
                 <Text style={{ fontSize: 12, color: 'gray' }}>
                   ID: {item.id} - createdByUser: {String(item.createdByUser)}
                 </Text>

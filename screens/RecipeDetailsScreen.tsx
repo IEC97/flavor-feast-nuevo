@@ -6,18 +6,21 @@ import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
+import RatingComments from '../components/RatingComments';
+import StarRating from '../components/StarRating';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
-  const { toggleFavorite, isFavorite, getRecipeDetails } = useRecipeContext();
+  const { toggleFavorite, isFavorite, getRecipeDetails, getRecipeAverageRating } = useRecipeContext();
 
   const { fromEdit } = route.params || {};
 
   const [portions, setPortions] = useState(1);
   const [recipeWithDetails, setRecipeWithDetails] = useState<Recipe>(recipe);
   const [loading, setLoading] = useState(false);
+  const [averageRating, setAverageRating] = useState<number>(recipe.rating || 0);
 
   // Cargar ingredientes y pasos al entrar en la pantalla
   useEffect(() => {
@@ -25,7 +28,12 @@ const RecipeDetailsScreen = () => {
       setLoading(true);
       try {
         console.log('🔍 Cargando detalles de receta:', recipe.id);
-        const completeRecipe = await getRecipeDetails(recipe.id);
+        
+        // Cargar detalles completos y valoración promedio en paralelo
+        const [completeRecipe, avgRating] = await Promise.all([
+          getRecipeDetails(recipe.id),
+          getRecipeAverageRating(recipe.id)
+        ]);
         
         if (completeRecipe) {
           setRecipeWithDetails(completeRecipe);
@@ -36,6 +44,10 @@ const RecipeDetailsScreen = () => {
         } else {
           console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
         }
+        
+        setAverageRating(avgRating);
+        console.log('✅ Valoración promedio cargada:', avgRating);
+        
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
       } finally {
@@ -44,7 +56,7 @@ const RecipeDetailsScreen = () => {
     };
 
     loadRecipeDetails();
-  }, [recipe.id, getRecipeDetails]);
+  }, [recipe.id, getRecipeDetails, getRecipeAverageRating]);
 
   const adjustQuantity = (qty: number) => Math.round(qty * portions);
 
@@ -64,7 +76,10 @@ const RecipeDetailsScreen = () => {
 
       <Text style={styles.title}>{recipeWithDetails.title}</Text>
       <Text style={styles.meta}>Por: {recipeWithDetails.author}</Text>
-      <Text style={styles.rating}>{'⭐'.repeat(recipeWithDetails.rating)}</Text>
+      <View style={styles.ratingContainer}>
+        <StarRating rating={averageRating} size={20} />
+        <Text style={styles.ratingText}>({averageRating.toFixed(1)})</Text>
+      </View>
       <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
       <Text style={styles.section}>Ingredientes</Text>
@@ -118,6 +133,17 @@ const RecipeDetailsScreen = () => {
         )
       )}
 
+      {/* Valoración y Comentarios */}
+      <Text style={styles.section}>Valoración y Comentarios</Text>
+      <RatingComments 
+        recipeId={recipe.id}
+        currentRating={averageRating}
+        onRatingUpdate={(newRating) => {
+          // Actualizar la valoración promedio cuando un usuario valore
+          setAverageRating(newRating);
+        }}
+      />
+
       {/* Botón solo si vienes de editar */}
     {fromEdit && (
       <TouchableOpacity
@@ -169,6 +195,16 @@ const styles = StyleSheet.create({
   meta: {
     color: '#555',
     marginBottom: 8,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ratingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
   },
   rating: {
     fontSize: 16,

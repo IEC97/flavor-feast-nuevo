@@ -18,6 +18,7 @@ import { useFilterContext } from '../context/FilterContext';
 import { useSortContext } from '../context/SortContext';
 import { useUserContext } from '../context/UserContext'; 
 import { API_BASE_URL } from '../constants'; 
+import StarRating from '../components/StarRating'; 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'HomeTabs'>;
 
@@ -285,7 +286,7 @@ useEffect(() => {
       <View style={styles.recipeInfo}>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.author}>Por: {item.author}</Text>
-        <Text style={styles.rating}>{'⭐'.repeat(item.rating)}</Text>
+        <StarRating rating={item.rating} size={14} />
       </View>
       <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
         <Ionicons
