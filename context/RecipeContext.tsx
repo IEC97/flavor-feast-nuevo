@@ -98,6 +98,18 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     fetchRecipes();
   }, []);
 
+  
+  useEffect(() => {
+    if (user?.id) {
+      const loadFavorites = async () => {
+        const favs = await getFavoritesFromBackend(user.id);
+        setFavorites(favs);
+      };
+      loadFavorites();
+    }
+  }, [user?.id]);
+
+
   // Actualizar createdByUser cuando el usuario esté disponible
   useEffect(() => {
     if (user?.id) {
@@ -467,12 +479,86 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  
+  const getFavoritesFromBackend = async (userId: string): Promise<Recipe[]> => {
+    try {
+      const url = `${API_BASE_URL}/users/${userId}/favorites`;
+      const response = await fetch(url);
+      const json = await response.json();
+
+      if (json.status === 200 && Array.isArray(json.data)) {
+        const mapped = json.data.map((r: any): Recipe => ({
+          id: r.idReceta.toString(),
+          title: r.nombre,
+          author: r.usuario || 'Desconocido',
+          rating: r.puntuacion || 5,
+          category: r.tipo || 'Sin categoría',
+          image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
+          ingredients: [],
+          steps: [],
+          createdByUser: false,
+          createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),
+          categoryId: r.tipoId,
+          servings: r.porciones,
+          userId: r.idUsuario,
+        }));
+        return mapped;
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Error al obtener favoritos del backend:', error);
+      return [];
+    }
+  };
+
+
+
+  
   const toggleFavorite = (recipe: Recipe) => {
+      if (!user?.id) {
+        console.error('⚠️ No hay usuario autenticado');
+        return;
+      }
+
+      setFavorites((prev) => {
+        const exists = prev.some((r) => r.id === recipe.id);
+        if (exists) {
+          removeFavoriteFromBackend(user.id, recipe.id);
+          return prev.filter((r) => r.id !== recipe.id);
+        } else {
+          addFavoriteToBackend(user.id, recipe.id);
+        return [...prev, recipe];
+        }
+    });
+  };
+
+  
+  const addFavoriteToBackend = async (userId: string, recipeId: string) => {
+    const url = `${API_BASE_URL}/users/${userId}/favorites/${recipeId}`;
+    try {
+      await fetch(url, { method: 'POST' });
+    } catch (error) {
+      console.error('❌ Error al agregar favorito:', error);
+    }
+  };
+
+
+  const removeFavoriteFromBackend = async (userId: string, recipeId: string) => {
+    const url = `${API_BASE_URL}/users/${userId}/favorites/${recipeId}&method=DELETE`;
+    try {
+      await fetch(url, { method: 'POST' });
+    } catch (error) {
+      console.error('❌ Error al eliminar favorito:', error);
+    }
+  };
+
+
+  /* const toggleFavorite = (recipe: Recipe) => {
     setFavorites((prev) => {
       const exists = prev.some((r) => r.id === recipe.id);
       return exists ? prev.filter((r) => r.id !== recipe.id) : [...prev, recipe];
     });
-  };
+  }; */
 
   const isFavorite = (id: string) => {
     return favorites.some((r) => r.id === id);
