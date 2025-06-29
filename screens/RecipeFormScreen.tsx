@@ -10,9 +10,11 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe, RootStackParamList, AvailableIngredient } from '../types';
 import { useUserContext } from '../context/UserContext';
@@ -75,6 +77,7 @@ const RecipeFormScreen = () => {
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     // Espera un ciclo de render para que el contexto se actualice
@@ -355,13 +358,23 @@ const RecipeFormScreen = () => {
       });
       
       editRecipe(editingRecipe.id, recipeData);
-      //navigation.navigate('RecipeDetails', { recipe: recipeData });MyRecipesScreen
-      navigation.navigate('RecipeDetails', { recipe: recipeData, fromEdit: true });
-      //navigation.navigate('HomeTabs', { screen: 'Mis Recetas' });
+      // Mostrar modal de éxito en lugar de navegar directamente
+      setShowSuccessModal(true);
     } else {
       //addRecipe(recipeData);
       navigation.navigate('RecipeSteps', { recipe: recipeData });
     }
+  };
+
+  const handleModalNavigation = () => {
+    setShowSuccessModal(false);
+    navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
+  };
+
+  const handleServingsChange = (text: string) => {
+    // Solo permitir números
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setServings(numericValue);
   };
 
   const handleDelete = () => {
@@ -373,7 +386,7 @@ const RecipeFormScreen = () => {
           style: 'destructive',
           onPress: () => {
             deleteRecipe(editingRecipe.id);
-            navigation.navigate('HomeTabs', { screen: 'MyRecipes' });
+            navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
           },
         },
       ]);
@@ -426,7 +439,13 @@ const RecipeFormScreen = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.screenContainer}>
+      {/* Botón de back */}
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
+
+      <ScrollView contentContainerStyle={styles.container}>
       
       {/* Sección de imagen simplificada - Solo URL */}
       <Text style={styles.label}>Imagen de la receta *</Text>
@@ -462,8 +481,9 @@ const RecipeFormScreen = () => {
       <TextInput
         style={styles.input}
         value={servings}
-        onChangeText={setServings}
+        onChangeText={handleServingsChange}
         keyboardType="numeric"
+        placeholder="Ej: 4"
       />
 
       <Text style={styles.label}>Tipo de Receta *</Text>
@@ -619,13 +639,58 @@ const RecipeFormScreen = () => {
           </TouchableOpacity> */}
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+
+      {/* Modal de éxito para edición */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.successIconContainer}>
+              <Text style={styles.successIcon}>✅</Text>
+            </View>
+            
+            <Text style={styles.successTitle}>¡Receta actualizada con éxito!</Text>
+            <Text style={styles.successMessage}>
+              Los cambios en tu receta han sido guardados correctamente.
+            </Text>
+            
+            <TouchableOpacity 
+              style={styles.successButton} 
+              onPress={handleModalNavigation}
+            >
+              <Text style={styles.successButtonText}>Volver al Inicio</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    backgroundColor: '#00000066',
+    borderRadius: 20,
+    padding: 6,
+    zIndex: 10,
+  },
   container: {
     padding: 16,
+    paddingTop: 60, // Reducido de 80 a 60
+    paddingBottom: 40, // Espacio para la barra de navegación inferior
   },
   label: {
     fontWeight: 'bold',
@@ -703,6 +768,63 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: 'white',
+    fontWeight: 'bold',
+  },
+  // Estilos para el modal de éxito
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 30,
+    width: '90%',
+    maxWidth: 350,
+    alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successIcon: {
+    fontSize: 60,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#23294c',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 22,
+  },
+  successButton: {
+    backgroundColor: '#23294c',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+  },
+  successButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

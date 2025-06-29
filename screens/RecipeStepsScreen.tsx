@@ -9,9 +9,11 @@ import {
   StyleSheet,
   Image,
   Alert,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe, Step, RootStackParamList } from '../types';
 
@@ -23,6 +25,8 @@ const RecipeStepsScreen = () => {
   const recipe = route.params?.recipe as Recipe;
 
   const [steps, setSteps] = useState(recipe?.steps || []);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   //const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
 
   const addStep = () => {
@@ -71,19 +75,14 @@ const RecipeStepsScreen = () => {
       if (recipe.id && recipe.id.trim() !== '' && recipe.createdByUser) {
         console.log('Editando receta existente con ID:', recipe.id);
         await editRecipe(recipe.id, completeRecipe);
-        navigation.navigate('RecipeDetails', { recipe: completeRecipe });
+        setIsEditing(true);
+        setShowSuccessModal(true);
       } else {
-        // Si no tiene ID o no es creada por el usuario, es una nueva receta
-        console.log('Creando nueva receta - ID:', recipe.id, 'createdByUser:', recipe.createdByUser);
+        // Si no tiene ID o no es creada por el usuario, es una nueva receta        console.log('Creando nueva receta - ID:', recipe.id, 'createdByUser:', recipe.createdByUser);
         await addRecipe(completeRecipe);
         
-        // Mostrar mensaje temporal
-        Alert.alert('¡Éxito!', 'Receta creada con éxito. Serás redirigido en un momento...');
-
-        // Redirigir automáticamente después de 2 segundos
-        setTimeout(() => {
-          navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
-        }, 2000);
+        // Mostrar modal de éxito
+        setShowSuccessModal(true);
 
         //navigation.navigate('RecipeDetails', { recipe: completeRecipe });
       }
@@ -93,9 +92,29 @@ const RecipeStepsScreen = () => {
     }
   };
   
+  const handleGoToMyRecipes = () => {
+    setShowSuccessModal(false);
+    if (isEditing) {
+      // Si estamos editando, volver a los detalles de la receta
+      navigation.navigate('RecipeDetails', { 
+        recipe: { ...recipe, steps: steps },
+        fromEdit: true 
+      });
+    } else {
+      // Si es una nueva receta, ir a "Mis Recetas"
+      navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
+    }
+  };
+  
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.screenContainer}>
+      {/* Botón de back */}
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
+
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <Text style={styles.title}>Pasos de la receta</Text>
 
       {steps.map((step, index) => (
@@ -153,11 +172,64 @@ const RecipeStepsScreen = () => {
       </TouchableOpacity>
 
     </ScrollView>
+
+    {/* Modal de éxito */}
+    <Modal
+      visible={showSuccessModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowSuccessModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.successIconContainer}>
+            <Text style={styles.successIcon}>✅</Text>
+          </View>
+          
+          <Text style={styles.successTitle}>
+            {isEditing ? '¡Receta actualizada con éxito!' : '¡Receta creada con éxito!'}
+          </Text>
+          <Text style={styles.successMessage}>
+            {isEditing 
+              ? 'Los cambios en tu receta han sido guardados correctamente.' 
+              : 'Tu receta ha sido guardada correctamente y ya está disponible en tu lista personal.'
+            }
+          </Text>
+          
+          <TouchableOpacity 
+            style={styles.successButton} 
+            onPress={handleGoToMyRecipes}
+          >
+            <Text style={styles.successButtonText}>
+              {isEditing ? 'Ver receta actualizada' : 'Volver al Inicio'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  screenContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    backgroundColor: '#00000066',
+    borderRadius: 20,
+    padding: 6,
+    zIndex: 10,
+  },
+  container: { padding: 16, paddingTop: 60 },
+  scrollContent: { 
+    paddingBottom: 100, // Espacio para la barra de navegación inferior
+  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -224,6 +296,63 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  // Estilos para el modal de éxito
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 30,
+    width: '90%',
+    maxWidth: 350,
+    alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successIcon: {
+    fontSize: 60,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#23294c',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 22,
+  },
+  successButton: {
+    backgroundColor: '#23294c',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+  },
+  successButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

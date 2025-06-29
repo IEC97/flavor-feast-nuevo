@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 
 interface OfflineModalProps {
   visible: boolean;
   onRetry: () => void;
-  onContinueOffline: () => void;
   onExitApp: () => void;
   message?: string;
 }
@@ -19,10 +19,20 @@ interface OfflineModalProps {
 export const OfflineModal: React.FC<OfflineModalProps> = ({
   visible,
   onRetry,
-  onContinueOffline,
   onExitApp,
   message = 'No tienes conexión a internet. Algunas funciones pueden no estar disponibles.',
 }) => {
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const handleRetry = () => {
+    setIsRetrying(true);
+    
+    // Simular un timeout de 2 segundos antes de llamar a onRetry
+    setTimeout(() => {
+      setIsRetrying(false);
+      onRetry();
+    }, 2000);
+  };
   return (
     <Modal
       visible={visible}
@@ -45,22 +55,24 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
           
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.retryButton]}
-              onPress={onRetry}
+              style={[styles.button, styles.retryButton, isRetrying && styles.disabledButton]}
+              onPress={handleRetry}
+              disabled={isRetrying}
             >
-              <Text style={styles.retryButtonText}>🔄 Reintentar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.button, styles.continueButton]}
-              onPress={onContinueOffline}
-            >
-              <Text style={styles.continueButtonText}>📱 Continuar sin conexión</Text>
+              {isRetrying ? (
+                <View style={styles.retryingContainer}>
+                  <ActivityIndicator size="small" color="white" style={styles.loadingSpinner} />
+                  <Text style={styles.retryButtonText}>Reintentando...</Text>
+                </View>
+              ) : (
+                <Text style={styles.retryButtonText}>� Reintentar</Text>
+              )}
             </TouchableOpacity>
             
             <TouchableOpacity
               style={[styles.button, styles.exitButton]}
               onPress={onExitApp}
+              disabled={isRetrying}
             >
               <Text style={styles.exitButtonText}>🚪 Salir de la app</Text>
             </TouchableOpacity>
@@ -128,15 +140,17 @@ const styles = StyleSheet.create({
   retryButton: {
     backgroundColor: '#13162e',
   },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  retryingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingSpinner: {
+    marginRight: 8,
+  },
   retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  continueButton: {
-    backgroundColor: '#34C759',
-  },
-  continueButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
