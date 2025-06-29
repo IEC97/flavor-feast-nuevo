@@ -119,7 +119,9 @@ const RecipeFormScreen = () => {
           if (completeRecipe) {
             console.log('✅ Detalles cargados para edición:', {
               ingredients: completeRecipe.ingredients?.length || 0,
-              steps: completeRecipe.steps?.length || 0
+              steps: completeRecipe.steps?.length || 0,
+              categoryId: completeRecipe.categoryId,
+              category: completeRecipe.category
             });
             
             // Usar datos del backend si están disponibles, sino usar los datos locales
@@ -131,9 +133,22 @@ const RecipeFormScreen = () => {
             })) || []);
             setIngredients(convertIngredientsToFormFormat(completeRecipe.ingredients || editingRecipe.ingredients || []));
             setServings((completeRecipe.servings || editingRecipe.servings || 1).toString());
-            setCategoryId((completeRecipe.categoryId || editingRecipe.categoryId || '').toString());
+            
+            const finalCategoryId = completeRecipe.categoryId || editingRecipe.categoryId;
+            console.log('🏷️ CategoryId para formulario:', finalCategoryId, '(tipo:', typeof finalCategoryId, ')');
+            
+            // Si categoryId es undefined pero category es un número, usar category como categoryId
+            if (!finalCategoryId && typeof completeRecipe.category === 'number') {
+              console.log('🔄 Usando category como categoryId:', completeRecipe.category);
+              setCategoryId((completeRecipe.category as number).toString());
+            } else if (finalCategoryId) {
+              setCategoryId(finalCategoryId.toString());
+            } else {
+              setCategoryId('');
+            }
           } else {
             console.log('⚠️ No se pudieron cargar detalles, usando datos locales');
+            console.log('🏷️ CategoryId de receta local:', editingRecipe.categoryId, '(tipo:', typeof editingRecipe.categoryId, ')');
             // Usar datos locales como fallback
             setTitle(editingRecipe.title);
             setDescription(editingRecipe.description || '');
@@ -147,6 +162,7 @@ const RecipeFormScreen = () => {
           }
         } catch (error) {
           console.error('❌ Error al cargar detalles para edición:', error);
+          console.log('🏷️ CategoryId de receta local (catch):', editingRecipe.categoryId, '(tipo:', typeof editingRecipe.categoryId, ')');
           // Usar datos locales como fallback
           setTitle(editingRecipe.title);
           setDescription(editingRecipe.description || '');
@@ -246,7 +262,7 @@ const RecipeFormScreen = () => {
 
 
     const recipeData: Recipe = {
-      id: editingRecipe?.id || generateId(),
+      id: editingRecipe?.id || '', // No generar ID temporal para nuevas recetas
       title,
       author: user?.username || user?.email || 'Usuario', // Usar datos del usuario autenticado
       description,
@@ -313,7 +329,7 @@ const RecipeFormScreen = () => {
   const goToStepEditor = () => {
     navigation.navigate('RecipeSteps', {
       recipe: {
-        id: editingRecipe?.id || generateId(),
+        id: editingRecipe?.id || '', // No generar ID temporal para nuevas recetas
         title,
         author: user?.username || user?.email || 'Usuario', // Usar datos del usuario autenticado
         description,

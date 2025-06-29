@@ -15,7 +15,7 @@ type RecipeContextType = {
   favorites: Recipe[];
   addRecipe: (recipe: Recipe) => void;
   editRecipe: (id: string, updatedRecipe: Partial<Recipe>) => void;
-  deleteRecipe: (id: string) => void;
+  deleteRecipe: (id: string) => Promise<boolean>;
   toggleFavorite: (recipe: Recipe) => void;
   isFavorite: (id: string) => boolean;
   getRecipeIngredients: (recipeId: string) => Promise<any[]>;
@@ -55,6 +55,13 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         const json = await response.json();
 
         if (json.status === 200 && Array.isArray(json.data)) {
+          console.log('🔍 Ejemplo de datos del backend:', json.data[0] ? {
+            idReceta: json.data[0].idReceta,
+            nombre: json.data[0].nombre,
+            tipoId: json.data[0].tipoId,
+            tipo: json.data[0].tipo
+          } : 'No hay datos');
+          
           const mapped = json.data.map((r: any): Recipe => ({
             id: r.idReceta.toString(), // Asegurar que sea string
             title: r.nombre,
@@ -406,10 +413,58 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const deleteRecipe = (id: string) => {
-    console.log('🗑️ Eliminando receta con ID:', id);
-    setRecipes((prev) => prev.filter((r) => r.id !== id));
-    setFavorites((prev) => prev.filter((r) => r.id !== id));
+  const deleteRecipe = async (id: string) => {
+    try {
+      console.log('🗑️ Eliminando receta con ID:', id);
+      
+      if (!user?.id) {
+        console.error('❌ No hay usuario autenticado para eliminar receta');
+        return false;
+      }
+
+      // Verificar que la receta pertenece al usuario
+      const recipeToDelete = recipes.find(r => r.id === id);
+      if (!recipeToDelete?.createdByUser) {
+        console.error('❌ Solo se pueden eliminar recetas creadas por el usuario');
+        return false;
+      }
+
+      const body = {
+        id: parseInt(id, 10),
+        idUsuario: parseInt(user.id, 10),
+      };
+
+      const url = `${API_BASE_URL}/recipes/${id}&method=DELETE`;
+      console.log('🗑️ Enviando DELETE a:', url);
+
+      const response = await fetch(url, {
+        method: 'POST', // POST con query parameters como en otros endpoints
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        console.error('❌ Error en respuesta de eliminación:', response.status);
+        return false;
+      }
+
+      const json = await response.json();
+      console.log('📝 Respuesta eliminación:', json);
+
+      if (json.status >= 200 && json.status < 300) {
+        console.log('✅ Receta eliminada exitosamente del backend');
+        // Eliminar del estado local
+        setRecipes((prev) => prev.filter((r) => r.id !== id));
+        setFavorites((prev) => prev.filter((r) => r.id !== id));
+        return true;
+      } else {
+        console.error('❌ Error al eliminar receta:', json.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error al eliminar receta:', error);
+      return false;
+    }
   };
 
   const toggleFavorite = (recipe: Recipe) => {
@@ -540,6 +595,13 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       const json = await response.json();
       
       if (json.status === 200 && Array.isArray(json.data)) {
+        console.log('🔍 getUserRecipes - Ejemplo de datos del backend:', json.data[0] ? {
+          idReceta: json.data[0].idReceta,
+          nombre: json.data[0].nombre,
+          tipoId: json.data[0].tipoId,
+          tipo: json.data[0].tipo
+        } : 'No hay datos');
+        
         const mappedRecipes = json.data.map((r: any): Recipe => ({
           id: r.idReceta.toString(),
           title: r.nombre,

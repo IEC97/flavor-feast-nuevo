@@ -7,7 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  //Alert,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons'; // Agrega este import
 import { Ionicons } from '@expo/vector-icons';
@@ -106,13 +106,21 @@ const MyRecipesScreen = () => {
       navigation.navigate('RecipeForm', {});
     } else if (promptType === 'delete' && recipeToDelete) {
       try {
+        console.log('🗑️ Intentando eliminar receta:', recipeToDelete);
         // Eliminar de la base de datos
-        deleteRecipe(recipeToDelete);
-        // Eliminar de la lista local también
-        setUserRecipes(prev => prev.filter(recipe => recipe.id !== recipeToDelete));
-        console.log('✅ Receta eliminada:', recipeToDelete);
+        const success = await deleteRecipe(recipeToDelete);
+        if (success) {
+          // Eliminar de la lista local también
+          setUserRecipes(prev => prev.filter(recipe => recipe.id !== recipeToDelete));
+          console.log('✅ Receta eliminada exitosamente:', recipeToDelete);
+          Alert.alert('Éxito', 'Receta eliminada correctamente');
+        } else {
+          console.error('❌ Error al eliminar receta del backend');
+          Alert.alert('Error', 'No se pudo eliminar la receta. Inténtalo de nuevo.');
+        }
       } catch (error) {
         console.error('❌ Error al eliminar receta:', error);
+        Alert.alert('Error', 'Ocurrió un error al eliminar la receta');
       }
       setShowPrompt(false);
       setPromptType(null);

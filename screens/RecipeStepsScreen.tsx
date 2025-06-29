@@ -38,6 +38,15 @@ const RecipeStepsScreen = () => {
     setSteps([...steps, { text: '', image: undefined }]);
   };
 
+  const removeStep = (index: number) => {
+    if (steps.length > 1) {
+      const updated = steps.filter((_, i) => i !== index);
+      setSteps(updated);
+    } else {
+      Alert.alert('Error', 'Debe tener al menos un paso');
+    }
+  };
+
   const handleChange = (index: number, field: 'text' | 'image', value: any) => {
     const updated = [...steps];
     updated[index][field] = value;
@@ -91,14 +100,14 @@ const RecipeStepsScreen = () => {
     };
 
     try {
-      // Si la receta tiene un ID, significa que estamos editando una receta existente
-      if (recipe.id) {
+      // Si la receta tiene un ID (y es creada por el usuario), estamos editando una receta existente
+      if (recipe.id && recipe.id.trim() !== '' && recipe.createdByUser) {
         console.log('Editando receta existente con ID:', recipe.id);
         await editRecipe(recipe.id, completeRecipe);
         navigation.navigate('RecipeDetails', { recipe: completeRecipe });
       } else {
-        // Si no tiene ID, es una nueva receta
-        console.log('Creando nueva receta');
+        // Si no tiene ID o no es creada por el usuario, es una nueva receta
+        console.log('Creando nueva receta - ID:', recipe.id, 'createdByUser:', recipe.createdByUser);
         await addRecipe(completeRecipe);
         navigation.navigate('RecipeDetails', { recipe: completeRecipe });
       }
@@ -113,38 +122,42 @@ const RecipeStepsScreen = () => {
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Pasos de la receta</Text>
 
-      {steps.map((step, index) => 
-        React.createElement(View, {
-          key: index,
-          style: styles.stepCard
-        }, [
-          React.createElement(Text, {
-            key: 'label',
-            style: styles.label
-          }, `Paso ${index + 1}`),
-          React.createElement(TextInput, {
-            key: 'input',
-            placeholder: "Descripción del paso",
-            value: step.text || step.description || '',
-            onChangeText: (text: string) => handleChange(index, 'text', text),
-            style: styles.input
-          }),
-          React.createElement(TouchableOpacity, {
-            key: 'imageBtn',
-            style: styles.imageBtn,
-            onPress: () => pickImage(index)
-          }, 
-            React.createElement(Text, {
-              style: { color: 'white', fontSize: 16 }
-            }, step.image ? 'Cambiar imagen' : 'Subir imagen')
-          ),
-          step.image ? React.createElement(Image, {
-            key: 'image',
-            source: step.image,
-            style: styles.img
-          }) : null
-        ].filter(Boolean))
-      )}
+      {steps.map((step, index) => (
+        <View key={index} style={styles.stepCard}>
+          <View style={styles.stepHeader}>
+            <Text style={styles.label}>Paso {index + 1}</Text>
+            {steps.length > 1 && (
+              <TouchableOpacity 
+                onPress={() => removeStep(index)}
+                style={styles.removeBtn}
+              >
+                <Text style={styles.removeText}>Eliminar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <TextInput
+            placeholder="Descripción del paso"
+            value={step.text || step.description || ''}
+            onChangeText={(text: string) => handleChange(index, 'text', text)}
+            style={styles.input}
+            multiline
+          />
+          
+          <TouchableOpacity 
+            style={styles.imageBtn}
+            onPress={() => pickImage(index)}
+          >
+            <Text style={{ color: 'white', fontSize: 16 }}>
+              {step.image ? 'Cambiar imagen' : 'Subir imagen'}
+            </Text>
+          </TouchableOpacity>
+          
+          {step.image && (
+            <Image source={step.image} style={styles.img} />
+          )}
+        </View>
+      ))}
 
       <TouchableOpacity onPress={addStep}>
         <Text style={styles.addStep}>+ Agregar otro paso</Text>
@@ -178,13 +191,31 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
   },
-  label: { fontWeight: 'bold', marginBottom: 4, fontSize: 16 },
+  stepHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  label: { fontWeight: 'bold', fontSize: 16 },
+  removeBtn: {
+    backgroundColor: '#dc3545',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  removeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 6,
     padding: 8,
     marginBottom: 8,
+    minHeight: 60,
   },
   imageBtn: {
     backgroundColor: '#23244c',
