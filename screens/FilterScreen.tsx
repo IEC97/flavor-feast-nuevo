@@ -1,62 +1,110 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+// Ruta: screens/FilterScreen.tsx
+
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFilterContext } from '../context/FilterContext';
-//import { API_BASE_URL } from '../constants';
-
-
-//const ingredients = ['Huevo', 'Zanahoria', 'Tomate', 'Queso', 'Pollo', 'Lechuga', 'Arroz', 'Lentejas', 'Pan', 'Frutilla', 'Carne', 'Crema', 'Harina', 'Leche', 'Morron', 'Batata'];
-const ingredients = ['Pollo', 'Azucar', 'Manzanas', 'Levadura', 'Huevos', 
-  'Leche', 'Mantequilla', 'Sal', 'Pimienta', 'Aceite de oliva', 'Arroz', 'Tomates', 
-  'Cebolla', 'Ajo', 'Queso', 'Chcocolate negro', 'Vainilla', 'Limon', 'Zanahoria', 'Papa'];
-//const categories = ['Pizza', 'Pasta', 'Arroz', 'Postres', 'Verduras', 'Sopas', 'Carnes', 'Pescado', 'Ensaladas', 'Legumbres', 'Aperitivos'];
-const categories = ['Panaderia', 'Cocina Salada', 'Reposteria', 'Bebidas', 'Ensaladas', 'Postres', 'Sopas', 'Platos Principales', 'Aperitivos', 'Salsas'];
-
+import { API_BASE_URL } from '../constants';
 
 const FilterScreen = () => {
   const navigation = useNavigation();
-  const { setFilters } = useFilterContext();
+  const { filters, setFilters } = useFilterContext();
+
   const [userSearch, setUserSearch] = useState('');
   const [include, setInclude] = useState<string[]>([]);
   const [exclude, setExclude] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const hasLoadedInitialState = useRef(false);
 
   const toggle = (list: string[], setList: Function, value: string) => {
     setList((prev: string[]) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value]
     );
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setFilters({
       user: userSearch,
       include,
       exclude,
       categories: selectedCategories,
     });
-
     navigation.goBack();
   };
 
-  /* const handleSave = () => {
-    setFilters({
-      user: userSearch,
-      include,
-      exclude,
-      categories: selectedCategories,
-    });
+  const handleClear = () => {
+    setUserSearch('');
+    setInclude([]);
+    setExclude([]);
+    setSelectedCategories([]);
+    setFilters({ user: '', include: [], exclude: [], categories: [] });
     navigation.goBack();
-  }; */
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const ingRes = await fetch(`${API_BASE_URL}/ingredients`);
+        const catRes = await fetch(`${API_BASE_URL}/categories`);
+
+        const ingData = await ingRes.json();
+        const catData = await catRes.json();
+
+        if (ingData.status === 200) setIngredients(ingData.data);
+        if (catData.status === 200) setCategories(catData.data);
+      } catch (error) {
+        console.error('Error al obtener datos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedInitialState.current && !loading) {
+      setUserSearch(filters.user || '');
+      setInclude(filters.include || []);
+      setExclude(filters.exclude || []);
+      setSelectedCategories(filters.categories || []);
+      hasLoadedInitialState.current = true;
+    }
+  }, [filters, loading]);
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#23294c" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
       <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={24} />
       </TouchableOpacity>
+
       <Text style={styles.title}>Filtro</Text>
+
       <TextInput
-        placeholder="Busqueda por usuario"
+        placeholder="Búsqueda por usuario"
         value={userSearch}
         onChangeText={setUserSearch}
         style={styles.input}
@@ -64,39 +112,39 @@ const FilterScreen = () => {
 
       <Text style={styles.section}>Ingredientes que incluye:</Text>
       <View style={styles.chipContainer}>
-        {ingredients.map((ing) => (
+        {ingredients.map((ing: any) => (
           <TouchableOpacity
-            key={ing}
-            style={[styles.chip, include.includes(ing) && styles.included]}
-            onPress={() => toggle(include, setInclude, ing)}
+            key={ing.idIngrediente}
+            style={[styles.chip, include.includes(ing.nombre) && styles.included]}
+            onPress={() => toggle(include, setInclude, ing.nombre)}
           >
-            <Text style={styles.chipText}>{ing}</Text>
+            <Text style={styles.chipText}>{ing.nombre}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <Text style={styles.section}>Ingredientes que excluye:</Text>
       <View style={styles.chipContainer}>
-        {ingredients.map((ing) => (
+        {ingredients.map((ing: any) => (
           <TouchableOpacity
-            key={ing}
-            style={[styles.chip, exclude.includes(ing) && styles.excluded]}
-            onPress={() => toggle(exclude, setExclude, ing)}
+            key={ing.idIngrediente + '_exclude'}
+            style={[styles.chip, exclude.includes(ing.nombre) && styles.excluded]}
+            onPress={() => toggle(exclude, setExclude, ing.nombre)}
           >
-            <Text style={styles.chipText}>{ing}</Text>
+            <Text style={styles.chipText}>{ing.nombre}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <Text style={styles.section}>Tipo de Receta:</Text>
       <View style={styles.chipContainer}>
-        {categories.map((cat) => (
+        {categories.map((cat: any) => (
           <TouchableOpacity
-            key={cat}
-            style={[styles.chip, selectedCategories.includes(cat) && styles.included]}
-            onPress={() => toggle(selectedCategories, setSelectedCategories, cat)}
+            key={cat.idCategoria}
+            style={[styles.chip, selectedCategories.includes(cat.nombre) && styles.included]}
+            onPress={() => toggle(selectedCategories, setSelectedCategories, cat.nombre)}
           >
-            <Text style={styles.chipText}>{cat}</Text>
+            <Text style={styles.chipText}>{cat.nombre}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -104,12 +152,17 @@ const FilterScreen = () => {
       <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
         <Text style={styles.saveText}>Guardar</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
+        <Text style={styles.clearText}>Limpiar filtros</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   back: { marginBottom: 8 },
   title: { fontWeight: 'bold', fontSize: 20, marginBottom: 12 },
   input: {
@@ -143,8 +196,19 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginBottom: 10,
   },
   saveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  clearBtn: {
+    backgroundColor: '#999',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearText: {
     color: '#fff',
     fontWeight: 'bold',
   },
