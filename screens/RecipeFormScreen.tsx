@@ -273,8 +273,8 @@ const RecipeFormScreen = () => {
         servings: recipeData.servings,
         categoryId: recipeData.categoryId,
       });
-      console.log('🥕 Ingredientes a enviar (detallados):', recipeData.ingredients);
-      console.log('📝 Pasos a enviar (detallados):', recipeData.steps);
+      console.log('🥕 Ingredientes a enviar:', recipeData.ingredients.length, 'ingredientes');
+      console.log('📝 Pasos a enviar:', recipeData.steps.length, 'pasos');
       console.log('🎛️ Estado actual del formulario:', {
         ingredients: ingredients.length,
         steps: steps.length,

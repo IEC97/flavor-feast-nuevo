@@ -79,8 +79,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           }));
 
           console.log('📥 Recetas cargadas desde backend:', mapped.length);
-          console.log('📥 IDs de recetas cargadas:', mapped.map((r: Recipe) => ({ id: r.id, title: r.title, tipo: typeof r.id, userId: r.userId })));
-          console.log('👤 Usuario actual:', user?.id, 'tipo:', typeof user?.id);
           setRecipes(mapped);
         } else {
           console.error('Error al cargar recetas:', json.message);
@@ -103,13 +101,13 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           // Obtener las recetas específicas del usuario
           const userRecipes = await getUserRecipes(user.id);
-          console.log('📋 Recetas del usuario obtenidas en useEffect:', userRecipes.length, userRecipes.map(r => r.id));
+          console.log('📋 Recetas del usuario encontradas:', userRecipes.length);
           
           // Actualizar el estado de recetas
           setRecipes(prev => {
             // Crear un mapa de las recetas del usuario para búsqueda rápida
             const userRecipeIds = new Set(userRecipes.map(r => r.id.toString()));
-            console.log('🎯 IDs de recetas del usuario:', Array.from(userRecipeIds));
+            console.log('🎯 Recetas del usuario marcadas:', userRecipeIds.size);
             
             // Actualizar recetas existentes y agregar las que falten
             const existingRecipeIds = new Set(prev.map(r => r.id.toString()));
@@ -118,13 +116,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             const updated = prev.map(recipe => {
               const recipeIdStr = recipe.id.toString();
               const isCreatedByUser = userRecipeIds.has(recipeIdStr);
-              if (recipe.id === "9" || recipeIdStr === "9") {
-                console.log('� Receta ID 9 DEBUG:');
-                console.log('  - recipe.id:', recipe.id, '(tipo:', typeof recipe.id, ')');
-                console.log('  - recipeIdStr:', recipeIdStr);
-                console.log('  - userRecipeIds:', Array.from(userRecipeIds));
-                console.log('  - isCreatedByUser:', isCreatedByUser);
-              }
               return {
                 ...recipe,
                 createdByUser: isCreatedByUser,
@@ -136,7 +127,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             const finalRecipes = [...updated, ...recipesToAdd];
             
             const userRecipesMarked = finalRecipes.filter(r => r.createdByUser);
-            console.log('✅ Recetas marcadas como del usuario:', userRecipesMarked.length, userRecipesMarked.map(r => ({ id: r.id, title: r.title })));
+            console.log('✅ Recetas marcadas como del usuario:', userRecipesMarked.length);
             
             return finalRecipes;
           });
@@ -239,7 +230,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       
       // DEBUG: Mostrar todas las recetas disponibles DESPUÉS de la actualización
       console.log('🔍 Total recetas en estado (después de refresh):', updatedRecipes.length);
-      console.log('🔍 IDs de recetas disponibles (después de refresh):', updatedRecipes.map((r: Recipe) => ({ id: r.id, title: r.title, createdByUser: r.createdByUser })));
       
       setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
 
@@ -312,33 +302,27 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Ingredientes - SIEMPRE incluir si están presentes en updated
         if (updated.ingredients && Array.isArray(updated.ingredients)) {
-          console.log('🥕 Actualizando ingredientes:', updated.ingredients);
+          console.log('🥕 Actualizando ingredientes:', updated.ingredients.length, 'ingredientes');
           camposModificados.ingredientes = updated.ingredients.map((i) => ({
             idIngrediente: i.id || 1,
             cantidad: i.quantity || 0,
             unidad: i.unit || 'gramos',
           }));
-          console.log('🥕 Ingredientes mapeados:', camposModificados.ingredientes);
         }
         
         // Pasos - VOLVER A INCLUIR para probar con logging detallado
         if (updated.steps && Array.isArray(updated.steps)) {
-          console.log('📝 Actualizando pasos:', updated.steps);
-          console.log('📝 Estructura de cada paso:');
+          console.log('📝 Actualizando pasos:', updated.steps.length, 'pasos');
+          console.log('📝 Verificando estructura de pasos...');
           updated.steps.forEach((s, index) => {
-            console.log(`  Paso ${index + 1}:`, {
-              description: s.description,
-              text: s.text,
-              hasImage: !!(s.image && typeof s.image === 'object' && 'uri' in s.image),
-              imageUri: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : null
-            });
+            console.log(`  Paso ${index + 1}: ${s.description || s.text || 'Sin descripción'}`);
           });
           
           camposModificados.pasos = updated.steps.map((s, index) => ({
             descripcion: s.description || s.text || '',
             multimedia: (s.image && typeof s.image === 'object' && 'uri' in s.image) ? s.image.uri : '',
           }));
-          console.log('📝 Pasos mapeados para backend:', camposModificados.pasos);
+          console.log('📝 Pasos procesados para envío al backend');
           console.log('🚨 ENVIANDO PASOS - verificar si el backend duplica la receta');
         }
 
@@ -360,7 +344,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           // ARREGLO: Usar query parameters correctos como en Postman
           const url = `${API_BASE_URL}/recipes/${id}&method=PUT`;
           console.log('🔄 Enviando PUT a:', url);
-          console.log('📦 Body:', JSON.stringify(body, null, 2));
+          console.log('📦 Body con', Object.keys(camposModificados).length, 'campos modificados');
           
           const res = await fetch(url, {
             method: 'POST', // POST con query parameters como en Postman
@@ -583,10 +567,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           description: r.descripcion,
         }));
         
-        console.log('🔍 getUserRecipes mapped results:');
-        mappedRecipes.forEach((recipe: Recipe) => {
-          console.log(`  - ID: ${recipe.id} (${typeof recipe.id}), title: ${recipe.title}, createdByUser: ${recipe.createdByUser}`);
-        });
+        console.log('🔍 getUserRecipes encontró:', mappedRecipes.length, 'recetas del usuario');
         
         return mappedRecipes;
       }
@@ -604,7 +585,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     console.log('🔄 FORCE REFRESH - Actualizando estado de recetas del usuario');
     try {
       const userRecipes = await getUserRecipes(user.id);
-      console.log('🔄 FORCE REFRESH - Recetas del usuario:', userRecipes.map(r => r.id));
+      console.log('🔄 FORCE REFRESH - Recetas del usuario encontradas:', userRecipes.length);
       
       return new Promise((resolve) => {
         setRecipes(prev => {
@@ -612,13 +593,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           
           const updated = prev.map(recipe => {
             const isCreatedByUser = userRecipeIds.has(recipe.id.toString());
-            if (recipe.id === "9") {
-              console.log('🔄 FORCE REFRESH - Receta 9:', {
-                before: recipe.createdByUser,
-                after: isCreatedByUser,
-                inUserRecipes: userRecipeIds.has("9")
-              });
-            }
             return {
               ...recipe,
               createdByUser: isCreatedByUser,
@@ -631,7 +605,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           const toAdd = userRecipes.filter(ur => !existingIds.has(ur.id.toString()));
           
           const final = [...updated, ...toAdd];
-          console.log('🔄 FORCE REFRESH - Recetas marcadas como del usuario:', final.filter(r => r.createdByUser).map(r => r.id));
+          console.log('🔄 FORCE REFRESH - Recetas marcadas como del usuario:', final.filter(r => r.createdByUser).length);
           
           resolve(final);
           return final;
