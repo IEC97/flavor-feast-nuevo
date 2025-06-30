@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useUser } from '../context/UserContext';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,7 +36,11 @@ const ProfileScreen = () => {
 
   if (!user) {
     return (
-      <View style={styles.centeredContainer}>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.centeredContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.warningText}>
           Debes iniciar sesión para ver tu perfil.
         </Text>
@@ -59,12 +63,16 @@ const ProfileScreen = () => {
             <Text style={styles.adminText}>🔧 Acceder como Administrador</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.scrollContainer}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <Image
         source={{ uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }}
         style={styles.avatar}
@@ -102,24 +110,27 @@ const ProfileScreen = () => {
           <Text style={styles.adminText}>🔧 Acceder como Administrador</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  scrollContainer: {
     flex: 1,
-    alignItems: 'center',
-    padding: 24,
     backgroundColor: '#fff',
     justifyContent: 'center',
   },
+  container: {
+    alignItems: 'center',
+    padding: 24,
+    paddingBottom: 40, // Espacio extra al final para asegurar visibilidad del botón admin
+  },
   centeredContainer: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#fff',
+    paddingBottom: 40, // Espacio extra al final para asegurar visibilidad del botón admin
   },
   warningText: {
     fontSize: 18,
