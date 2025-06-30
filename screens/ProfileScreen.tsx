@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useUser } from '../context/UserContext';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,11 +36,7 @@ const ProfileScreen = () => {
 
   if (!user) {
     return (
-      <ScrollView 
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.centeredContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.centeredContainer}>
         <Text style={styles.warningText}>
           Debes iniciar sesión para ver tu perfil.
         </Text>
@@ -63,16 +59,12 @@ const ProfileScreen = () => {
             <Text style={styles.adminText}>🔧 Acceder como Administrador</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
     );
   }
 
   return (
-    <ScrollView 
-      style={styles.scrollContainer}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.container}>
       <Image
         source={{ uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }}
         style={styles.avatar}
@@ -110,26 +102,23 @@ const ProfileScreen = () => {
           <Text style={styles.adminText}>🔧 Acceder como Administrador</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
   container: {
+    flex: 1,
     alignItems: 'center',
     padding: 24,
-    paddingBottom: 40, // Espacio extra al final para asegurar visibilidad del botón admin
+    backgroundColor: '#fff',
   },
   centeredContainer: {
-    flexGrow: 1,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    paddingBottom: 40, // Espacio extra al final para asegurar visibilidad del botón admin
+    backgroundColor: '#fff',
   },
   warningText: {
     fontSize: 18,
