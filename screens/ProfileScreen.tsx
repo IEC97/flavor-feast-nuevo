@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   logoutBtn: {
-    marginTop: 40,
+    marginTop: 2,
     backgroundColor: '#B59A51',
     paddingVertical: 14,
     paddingHorizontal: 40,
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   // Estilos para la sección de administrador
   adminSection: {
-    marginTop: 30,
+    marginTop: 10,
     width: '100%',
     alignItems: 'center',
     padding: 16,
