@@ -29,7 +29,15 @@
     "ios": {
       "bundleIdentifier": "com.mzkrantz.flavorfeast",
       "buildNumber": "1.0.0",
-      "userInterfaceStyle": "light"
+      "userInterfaceStyle": "light",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1da2f237-7c22-49be-a096-b1eefad4abe0"
+      }
     }
   }
 }
