@@ -455,8 +455,9 @@ const RecipeFormScreen = () => {
 
       {/* Campo para URL de imagen */}
       <TextInput
-        style={styles.input}
+        style={styles.imageUrlInput}
         placeholder="URL de imagen OBLIGATORIA (ej: https://ejemplo.com/imagen.jpg)"
+        placeholderTextColor="#000"
         value={imageUrl}
         onChangeText={handleImageUrlChange}
         keyboardType="url"
@@ -467,13 +468,14 @@ const RecipeFormScreen = () => {
       </Text>
 
       <Text style={styles.label}>Título *</Text>
-      <TextInput style={styles.input} value={title} onChangeText={setTitle} />
+      <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholderTextColor="#000" />
 
       <Text style={styles.label}>Descripción *</Text>
       <TextInput
         style={[styles.input, styles.multiline]}
         value={description}
         onChangeText={setDescription}
+        placeholderTextColor="#000"
         multiline
       />
 
@@ -484,6 +486,7 @@ const RecipeFormScreen = () => {
         onChangeText={handleServingsChange}
         keyboardType="numeric"
         placeholder="Ej: 4"
+        placeholderTextColor="#000"
       />
 
       <Text style={styles.label}>Tipo de Receta *</Text>
@@ -492,20 +495,22 @@ const RecipeFormScreen = () => {
           <Text style={{ color: '#666' }}>Cargando categorías...</Text>
         </View>
       ) : (
-        <Picker
-          selectedValue={categoryId}
-          onValueChange={(itemValue) => setCategoryId(itemValue)}
-          style={styles.input}
-        >
-          <Picker.Item label="Selecciona una categoría" value="" />
-          {categories.map((cat) => 
-            React.createElement(Picker.Item, {
-              key: cat.id,
-              label: cat.name,
-              value: cat.id.toString()
-            })
-          )}
-        </Picker>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={categoryId}
+            onValueChange={(itemValue) => setCategoryId(itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Selecciona una categoría" value="" />
+            {categories.map((cat) => 
+              React.createElement(Picker.Item, {
+                key: cat.id,
+                label: cat.name,
+                value: cat.id.toString()
+              })
+            )}
+          </Picker>
+        </View>
       )}
 
       <Text style={styles.label}>Ingredientes *</Text>
@@ -532,11 +537,14 @@ const RecipeFormScreen = () => {
             style: { marginBottom: 4, fontWeight: '500' }
           }, 'Seleccionar ingrediente:'),
           
-          React.createElement(Picker, {
+          React.createElement(View, {
+            key: 'pickerWrapper',
+            style: styles.pickerContainer
+          }, React.createElement(Picker, {
             key: 'picker',
             selectedValue: (ingredient.ingredientId || 1).toString(),
             onValueChange: (value: unknown) => updateIngredient(index, 'ingredientId', value as string),
-            style: [styles.input, { marginBottom: 8 }]
+            style: styles.picker
           }, [
             React.createElement(Picker.Item, {
               key: 'placeholder',
@@ -550,7 +558,7 @@ const RecipeFormScreen = () => {
                 value: availableIng.id.toString()
               })
             )
-          ]),
+          ])),
           
           React.createElement(View, {
             key: 'quantityRow',
@@ -567,6 +575,7 @@ const RecipeFormScreen = () => {
               React.createElement(TextInput, {
                 key: 'quantity',
                 placeholder: "Cantidad",
+                placeholderTextColor: "#000",
                 style: styles.input,
                 keyboardType: "numeric",
                 value: ingredient.quantity.toString(),
@@ -585,6 +594,7 @@ const RecipeFormScreen = () => {
               React.createElement(TextInput, {
                 key: 'unit',
                 placeholder: "ej: gramos, ml, unidades",
+                placeholderTextColor: "#000",
                 style: styles.input,
                 value: ingredient.unit,
                 onChangeText: (text: string) => updateIngredient(index, 'unit', text)
@@ -703,6 +713,26 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 6,
     marginTop: 4,
+    color: '#000', // Texto negro
+  },
+  imageUrlInput: {
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 4,
+    color: '#000', // Texto gris claro para URL de imagen
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#d0d0d0', // Borde negro
+    borderRadius: 6,
+    marginTop: 4,
+    backgroundColor: '#fff',
+  },
+  picker: {
+    color: '#000', // Texto negro
+    backgroundColor: '#fff',
   },
   multiline: {
     height: 100,

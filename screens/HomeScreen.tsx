@@ -566,6 +566,7 @@ useEffect(() => {
           <Ionicons name="restaurant" size={24} style={{ marginRight: 8 }} />
           <TextInput
             placeholder="Buscar recetas..."
+            placeholderTextColor="#000"
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
@@ -706,6 +707,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 6,
+    color: '#000', // Texto negro
   },
   subheading: {
     fontSize: 16,

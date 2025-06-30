@@ -389,6 +389,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minHeight: 80,
     marginBottom: 12,
+    color: '#000', // Texto negro
   },
   commentInputDisabled: {
     backgroundColor: '#f5f5f5',

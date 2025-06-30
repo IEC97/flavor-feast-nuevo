@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginBottom: 20,
+    color: '#000', // Texto negro
   },
   button: {
     backgroundColor: '#B59A51',

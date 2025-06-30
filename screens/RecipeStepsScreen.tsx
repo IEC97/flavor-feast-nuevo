@@ -133,6 +133,7 @@ const RecipeStepsScreen = () => {
           
           <TextInput
             placeholder="Descripción del paso"
+            placeholderTextColor="#000"
             value={step.text || step.description || ''}
             onChangeText={(text: string) => handleChange(index, 'text', text)}
             style={styles.input}
@@ -141,6 +142,7 @@ const RecipeStepsScreen = () => {
           
           <TextInput
             placeholder="URL de imagen (opcional)"
+            placeholderTextColor="#000"
             value={step.imageUrl || ''}
             onChangeText={(url: string) => handleChange(index, 'imageUrl', url)}
             style={styles.imageInput}
@@ -266,6 +268,8 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 8,
     minHeight: 60,
+    color: '#000', // Texto negro
+    backgroundColor: '#fff', // Fondo blanco
   },
   imageInput: {
     borderWidth: 1,
@@ -273,7 +277,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 8,
     marginBottom: 8,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff', // Fondo blanco
+    color: '#000', // Texto negro
   },
   img: {
     width: '100%',

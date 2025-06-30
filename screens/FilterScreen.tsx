@@ -105,6 +105,7 @@ const FilterScreen = () => {
 
       <TextInput
         placeholder="Búsqueda por usuario"
+        placeholderTextColor="#000"
         value={userSearch}
         onChangeText={setUserSearch}
         style={styles.input}
@@ -172,6 +173,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     marginBottom: 20,
+    color: '#000', // Texto negro
   },
   section: {
     fontWeight: 'bold',

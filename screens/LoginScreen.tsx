@@ -164,6 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginVertical: 10,
+    color: '#000', // Texto negro
   },
   inputError: {
     borderColor: 'red',
