@@ -177,6 +177,8 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
     };
     
     try {
+      console.log('🚀 Enviando receta al backend:', backendRecipe);
+      
       const response = await fetch(
         `${API_BASE_URL}/recipes`,
         {
@@ -185,8 +187,14 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           body: JSON.stringify(backendRecipe),
         }
       );
+      
+      if (!response.ok) {
+        console.error('❌ Error en la respuesta del backend:', response.status, response.statusText);
+        return;
+      }
+      
       const json = await response.json();
-      console.log('Respuesta del backend:', json);
+      console.log('📝 Respuesta completa del backend:', json);
 
       const statusCode = Number(json.status);
 
@@ -194,12 +202,36 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       if (statusCode >= 200 && statusCode < 300 && json.data) {
         // Muestra el mensaje del backend al usuario (creado o actualizado)
         console.log('✅ Receta guardada:', json.message);
+        
+        // Asegurar que tenemos el ID correcto del backend
+        const backendId = json.data.idReceta || json.data.id;
+        if (!backendId) {
+          console.error('❌ Error: El backend no devolvió un ID válido para la receta');
+          console.error('📋 Datos recibidos:', json.data);
+          return;
+        }
+        
+        console.log('📋 ID asignado por el backend:', backendId);
+        
+        // Crear la receta con el ID del backend y marcarla como creada por el usuario
+        const newRecipeWithBackendId = {
+          ...recipe,
+          id: backendId.toString(),
+          createdByUser: true,
+          userId: parseInt(user.id, 10),
+          createdAt: Date.now()
+        };
+        
         setRecipes((prev) => [
           ...prev,
-          { ...recipe, id: json.data.idReceta || Date.now().toString(), createdByUser: true },
+          newRecipeWithBackendId,
         ]);
+        
+        console.log('✅ Receta agregada al estado local con ID del backend:', backendId);
       } else {
-        console.error('Error al crear receta:', json.message);
+        console.error('❌ Error al crear receta - Status:', statusCode);
+        console.error('❌ Mensaje del backend:', json.message);
+        console.error('❌ Datos devueltos:', json.data);
       }
 
     } catch (error) {
@@ -404,6 +436,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   const deleteRecipe = async (id: string) => {
     try {
       console.log('🗑️ Eliminando receta con ID:', id);
+      console.log('🗑️ Tipo de ID:', typeof id);
       
       if (!user?.id) {
         console.error('❌ No hay usuario autenticado para eliminar receta');
@@ -411,8 +444,16 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Verificar que la receta pertenece al usuario
-      const recipeToDelete = recipes.find(r => r.id === id);
-      if (!recipeToDelete?.createdByUser) {
+      const recipeToDelete = recipes.find(r => r.id === id || r.id === id.toString());
+      console.log('🔍 Receta encontrada:', recipeToDelete ? 'SÍ' : 'NO');
+      console.log('🔍 Lista de IDs en el estado:', recipes.map(r => ({ id: r.id, title: r.title, createdByUser: r.createdByUser })));
+      
+      if (!recipeToDelete) {
+        console.error('❌ No se encontró la receta con ID:', id);
+        return false;
+      }
+      
+      if (!recipeToDelete.createdByUser) {
         console.error('❌ Solo se pueden eliminar recetas creadas por el usuario');
         return false;
       }
@@ -424,6 +465,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
       const url = `${API_BASE_URL}/recipes/${id}&method=DELETE`;
       console.log('🗑️ Enviando DELETE a:', url);
+      console.log('🗑️ Body:', body);
 
       const response = await fetch(url, {
         method: 'POST', // POST con query parameters como en otros endpoints
@@ -441,9 +483,13 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (json.status >= 200 && json.status < 300) {
         console.log('✅ Receta eliminada exitosamente del backend');
-        // Eliminar del estado local
-        setRecipes((prev) => prev.filter((r) => r.id !== id));
-        setFavorites((prev) => prev.filter((r) => r.id !== id));
+        // Eliminar del estado local usando comparación flexible de IDs
+        setRecipes((prev) => {
+          const filtered = prev.filter((r) => r.id !== id && r.id !== id.toString());
+          console.log('🗑️ Recetas después de eliminar:', filtered.length, 'de', prev.length);
+          return filtered;
+        });
+        setFavorites((prev) => prev.filter((r) => r.id !== id && r.id !== id.toString()));
         return true;
       } else {
         console.error('❌ Error al eliminar receta:', json.message);
