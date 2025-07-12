@@ -26,6 +26,7 @@ type RecipeContextType = {
   getUserRecipes: (userId: string) => Promise<Recipe[]>;
   refreshUserRecipesStatus: () => Promise<Recipe[]>;
   getRecipeAverageRating: (recipeId: string) => Promise<number>;
+  clearFavorites: () => void;
 };
 
 const RecipeContext = createContext<RecipeContextType | undefined>(undefined);
@@ -43,6 +44,10 @@ const API_URL = (`${API_BASE_URL}/recipes`);
 export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [favorites, setFavorites] = useState<Recipe[]>([]);
+
+  const clearFavorites = () => {
+    setFavorites([]);
+  };
 
   const { user } = useUserContext();
   const idUsuario = user?.id;
@@ -102,6 +107,14 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         setFavorites(favs);
       };
       loadFavorites();
+    }
+  }, [user?.id]);
+
+  // Limpiar favoritos cuando el usuario se desloguea
+  useEffect(() => {
+    if (!user?.id) {
+      console.log('🧹 Usuario deslogueado, limpiando favoritos...');
+      setFavorites([]);
     }
   }, [user?.id]);
 
@@ -860,7 +873,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <RecipeContext.Provider
-      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, refreshFavorites, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes, refreshUserRecipesStatus, getRecipeAverageRating }}
+      value={{ recipes, myRecipes, favorites, addRecipe, editRecipe, deleteRecipe, toggleFavorite, isFavorite, refreshFavorites, getRecipeIngredients, getRecipeSteps, getRecipeDetails, getAvailableIngredients, getUserRecipes, refreshUserRecipesStatus, getRecipeAverageRating, clearFavorites }}
     >
       {children}
     </RecipeContext.Provider>
