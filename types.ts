@@ -44,6 +44,7 @@ export type Comment = {
   userId?: number;
   username?: string;
   createdAt?: string;
+  rating?: number; // Puntuacion
 };
 
 export type Rating = {
