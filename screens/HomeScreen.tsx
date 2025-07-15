@@ -42,7 +42,6 @@ const HomeScreen = () => {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]); // Para la lista principal con paginación
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [ratingsLoaded, setRatingsLoaded] = useState(false); // Estado para force re-render
   const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
   
   // Estados para paginación
@@ -158,11 +157,7 @@ const HomeScreen = () => {
         
         setLatestRecipes(adaptedData);
         
-        // Cargar valoraciones para las últimas 3 recetas
-        if (adaptedData.length > 0) {
-          const recipeIds = adaptedData.map((recipe: Recipe) => recipe.id);
-          await ratingCache.loadMultipleRatings(recipeIds);
-        }
+        setLatestRecipes(adaptedData);
       } else {
         console.error('Error al cargar últimas recetas:', json.message);
         setLatestRecipes([]);
@@ -214,12 +209,6 @@ const HomeScreen = () => {
         // Actualizar estado de paginación basado en la cantidad recibida
         setHasMoreData(adaptedData.length === PAGE_SIZE);
         
-        // Cargar valoraciones para las nuevas recetas
-        if (adaptedData.length > 0) {
-          const recipeIds = adaptedData.map((recipe: Recipe) => recipe.id);
-          await ratingCache.loadMultipleRatings(recipeIds);
-          setRatingsLoaded(prev => !prev);
-        }
       } else {
         console.error('Error en backend:', json.message);
         setHasMoreData(false);
@@ -264,7 +253,6 @@ const HomeScreen = () => {
       // Starting refresh...
       // Resetear completamente el estado de paginación
       resetPagination();
-      ratingCache.clearCache(); // Limpiar cache de valoraciones
       
       // Cargar mapas de IDs y recetas en paralelo
       await Promise.all([
@@ -272,6 +260,7 @@ const HomeScreen = () => {
         fetchLatestThree(),
         fetchAllRecipes(1, false) // Cargar primera página de la lista principal
       ]);
+      
       // Refresh completed
     } catch (error) {
       console.error('❌ Error al actualizar:', error);
@@ -304,11 +293,6 @@ const HomeScreen = () => {
   useEffect(() => {
     setForceUpdate(prev => prev + 1);
   }, [ratingCache.updateCounter]);
-
-  // Force update cuando cambian las valoraciones cargadas
-  useEffect(() => {
-    setForceUpdate(prev => prev + 1);
-  }, [ratingsLoaded]);
 
   // Eliminamos el useEffect duplicado que causaba el loop
 
