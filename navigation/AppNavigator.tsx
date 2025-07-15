@@ -17,6 +17,7 @@ import VerifyCodeScreen from '../screens/VerifyCodeScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import RegisterInfoScreen from '../screens/RegisterInfoScreen';
 import TabNavigator from './TabNavigator';
+import { RatingCacheInitializer } from '../components/RatingCacheInitializer';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,6 +25,7 @@ export default function AppNavigator() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <StatusBar style="dark" backgroundColor="#FFFFFF" />
+      <RatingCacheInitializer />
       <NavigationContainer>
         <Stack.Navigator
           initialRouteName="HomeTabs"

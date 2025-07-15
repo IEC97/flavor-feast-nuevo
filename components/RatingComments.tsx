@@ -46,7 +46,22 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
   const loadRatingInfo = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/puntuacion`);
-      const json = await response.json();
+      
+      if (!response.ok) {
+        console.error('❌ Error en respuesta de valoración:', response.status, response.statusText);
+        return;
+      }
+      
+      const text = await response.text();
+      let json;
+      
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ Error al parsear JSON de valoración:', parseError);
+        console.error('❌ Respuesta recibida:', text.substring(0, 200));
+        return;
+      }
       
       if (json.status === 200 && json.data) {
         setRatingInfo({
@@ -62,7 +77,22 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
   const loadComments = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comentario`);
-      const json = await response.json();
+      
+      if (!response.ok) {
+        console.error('❌ Error en respuesta de comentarios:', response.status, response.statusText);
+        return;
+      }
+      
+      const text = await response.text();
+      let json;
+      
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ Error al parsear JSON de comentarios:', parseError);
+        console.error('❌ Respuesta recibida:', text.substring(0, 200));
+        return;
+      }
       
       if (json.status === 200 && json.data) {
         // Tomar solo los últimos 2 comentarios
@@ -110,27 +140,54 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
         }),
       });
 
-      const json = await response.json();
+      if (!response.ok) {
+        console.error('❌ Error en respuesta de valoración:', response.status, response.statusText);
+        Alert.alert('Error', 'Error al enviar valoración');
+        return;
+      }
+
+      const text = await response.text();
+      let json;
+      
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ Error al parsear JSON de valoración:', parseError);
+        console.error('❌ Respuesta recibida:', text.substring(0, 200));
+        Alert.alert('Error', 'Error en la respuesta del servidor');
+        return;
+      }
+
       if (json.status === 200 || json.status === 201) {
         setUserRating(rating);
         // Recargar la información de valoración después de valorar
         const updatedResponse = await fetch(`${API_BASE_URL}/recipes/${recipeId}/puntuacion`);
-        const updatedJson = await updatedResponse.json();
         
-        if (updatedJson.status === 200 && updatedJson.data) {
-          const newRatingInfo = {
-            promedio: updatedJson.data.promedio || 0,
-            cantidadVotos: updatedJson.data.cantidadVotos || 0
-          };
-          setRatingInfo(newRatingInfo);
-          onRatingUpdate?.(newRatingInfo.promedio, newRatingInfo.cantidadVotos);
+        if (updatedResponse.ok) {
+          const updatedText = await updatedResponse.text();
+          try {
+            const updatedJson = JSON.parse(updatedText);
+            if (updatedJson.status === 200 && updatedJson.data) {
+              const newRatingInfo = {
+                promedio: updatedJson.data.promedio || 0,
+                cantidadVotos: updatedJson.data.cantidadVotos || 0
+              };
+              setRatingInfo(newRatingInfo);
+              onRatingUpdate?.(newRatingInfo.promedio, newRatingInfo.cantidadVotos);
+            }
+          } catch (parseError) {
+            console.error('❌ Error al parsear JSON de valoración actualizada:', parseError);
+          }
         }
-        console.log('✅ Valoración guardada');
+        
+        Alert.alert('Éxito', 'Valoración guardada exitosamente');
       } else {
         console.error('❌ Error al guardar valoración:', json.message);
+        Alert.alert('Error', json.message || 'Error al guardar valoración');
       }
     } catch (error) {
       console.error('❌ Error al enviar valoración:', error);
+      Alert.alert('Error', 'Error de conexión al enviar valoración');
     } finally {
       setLoading(false);
     }
@@ -165,7 +222,24 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
         }),
       });
 
-      const json = await response.json();
+      if (!response.ok) {
+        console.error('❌ Error en respuesta de comentario:', response.status, response.statusText);
+        Alert.alert('Error', 'Error al enviar comentario');
+        return;
+      }
+
+      const text = await response.text();
+      let json;
+      
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ Error al parsear JSON de comentario:', parseError);
+        console.error('❌ Respuesta recibida:', text.substring(0, 200));
+        Alert.alert('Error', 'Error en la respuesta del servidor');
+        return;
+      }
+
       if (json.status === 200 || json.status === 201) {
         setNewComment('');
         loadComments(); // Recargar comentarios

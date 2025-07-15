@@ -43,8 +43,8 @@ const RecipeDetailsScreen = () => {
           console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
         }
         
-        // Cargar información de valoración usando el cache
-        await ratingCache.loadRating(recipe.id);
+        // Cargar información de valoración específica y actualizar el cache
+        await ratingCache.loadAndUpdateRating(recipe.id);
         
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
