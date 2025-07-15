@@ -161,6 +161,7 @@ const RecipeDetailsScreen = () => {
         recipeId={recipe.id}
         currentRating={averageRating}
         onRatingUpdate={handleRatingUpdate}
+        idAutor={recipeWithDetails.userId ?? -1}
       />
 
       {/* Botón solo si vienes de editar */}

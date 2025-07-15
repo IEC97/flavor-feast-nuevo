@@ -17,15 +17,18 @@ import StarRating from './StarRating';
 interface RatingCommentsProps {
   recipeId: string;
   currentRating: number;
+  idAutor: number;
   onRatingUpdate?: (newRating: number, voteCount: number) => void;
 }
 
 const RatingComments: React.FC<RatingCommentsProps> = ({ 
   recipeId, 
   currentRating, 
+  idAutor,
   onRatingUpdate 
 }) => {
   const { user } = useUserContext();
+  const isOwnRecipe = Number(user?.id) === Number(idAutor);
   const [comments, setComments] = useState<Comment[]>([]);
   const [userRating, setUserRating] = useState<number>(0);
   const [newComment, setNewComment] = useState<string>('');
@@ -34,6 +37,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
     promedio: currentRating,
     cantidadVotos: 0
   });
+  const [comentarios, setComentarios] = useState([]);
 
   useEffect(() => {
     loadComments();
@@ -97,13 +101,14 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
       if (json.status === 200 && json.data) {
         // Tomar solo los últimos 2 comentarios
         const recentComments = json.data
-          .slice(-2)
+          .reverse().slice(0, 10)
           .map((c: any) => ({
             id: c.idComentario,
             description: c.descripcion,
-            approved: true, // Los comentarios que devuelve el backend ya están aprobados
+            approved: true,
             username: c.usuario || 'Usuario anónimo',
             createdAt: c.fechaCreacion,
+            rating: typeof c.puntuacion === 'number' ? c.puntuacion : 0
           }));
         setComments(recentComments);
       }
@@ -196,6 +201,11 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
   const submitComment = async () => {
     if (!user?.id) {
       Alert.alert('Error', 'Debes iniciar sesión para comentar');
+      return;
+    }
+
+    if (isOwnRecipe) {
+      Alert.alert('Error', 'No puedes comentar tu propia receta');
       return;
     }
 
@@ -298,7 +308,10 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
         ) : (
           comments.map((comment) => (
             <View key={comment.id} style={styles.commentCard}>
-              <Text style={styles.commentAuthor}>{comment.username}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={styles.commentAuthor}>{comment.username}</Text>
+                {typeof comment.rating === 'number' && renderStars(comment.rating, undefined, 16)}
+              </View>
               <Text style={styles.commentText}>{comment.description}</Text>
             </View>
           ))
