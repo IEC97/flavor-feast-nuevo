@@ -39,16 +39,10 @@ const HomeScreen = () => {
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [latestRecipes, setLatestRecipes] = useState<Recipe[]>([]); // Para las 3 últimas recetas
-  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]); // Para la lista principal con paginación
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]); // Para todas las recetas
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
-  
-  // Estados para paginación
-  const [currentPage, setCurrentPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreData, setHasMoreData] = useState(true);
-  const PAGE_SIZE = 6; // Tamaño de página para paginación real
 
   // Estados para mapas dinámicos
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
@@ -156,8 +150,6 @@ const HomeScreen = () => {
         }));
         
         setLatestRecipes(adaptedData);
-        
-        setLatestRecipes(adaptedData);
       } else {
         console.error('Error al cargar últimas recetas:', json.message);
         setLatestRecipes([]);
@@ -168,16 +160,12 @@ const HomeScreen = () => {
     }
   };
 
-  // Función para obtener recetas con paginación real del backend (para la lista principal)
-  const fetchAllRecipes = async (page: number = 1, append: boolean = false) => {
+  // Función para obtener todas las recetas sin paginación
+  const fetchAllRecipes = async () => {
     try {
-      // Calcular offset basado en la página actual
-      const offset = (page - 1) * PAGE_SIZE;
       // Incluir parámetro de ordenamiento
       const sortParam = getSortParameter(sortOrder);
-      const url = `${API_BASE_URL}/recipes&limit=${PAGE_SIZE}&offset=${offset}&orden=${sortParam}`;
-      
-      // console.log(`📄 Fetching page ${page}, offset: ${offset}, append: ${append}, sort: ${sortParam}`); // Removido - muy verboso
+      const url = `${API_BASE_URL}/recipes&orden=${sortParam}`;
       
       const response = await fetch(url);
       const json = await response.json();
@@ -192,76 +180,28 @@ const HomeScreen = () => {
           rating: 0,
         }));
         
-        // console.log(`✅ Received ${adaptedData.length} recipes for page ${page}`); // Removido - muy verboso
-        // Mapa de categorías cargado
-        
-        if (append) {
-          setAllRecipes(prev => {
-            const newRecipes = [...prev, ...adaptedData];
-            // Total recipes after append
-            return newRecipes;
-          });
-        } else {
-          // Replacing recipes with new recipes
-          setAllRecipes(adaptedData);
-        }
-        
-        // Actualizar estado de paginación basado en la cantidad recibida
-        setHasMoreData(adaptedData.length === PAGE_SIZE);
+        setAllRecipes(adaptedData);
+        console.log(`✅ Recetas cargadas: ${adaptedData.length}`);
         
       } else {
         console.error('Error en backend:', json.message);
-        setHasMoreData(false);
       }
     } catch (error) {
       console.error('Error fetching all recipes:', error);
-      setHasMoreData(false);
     }
-  };
-
-  // Función para cargar más recetas (infinite scroll)
-  const loadMoreRecipes = async () => {
-    if (loadingMore || !hasMoreData) {
-      // Skipping loadMore: already loading or no more data
-      return;
-    }
-    
-    const nextPage = currentPage + 1;
-    // Loading next page
-    
-    setLoadingMore(true);
-    await fetchAllRecipes(nextPage, true); // append = true
-    setCurrentPage(nextPage);
-    setLoadingMore(false);
-    
-    // Finished loading page
-  };
-
-  // Función para resetear completamente el estado
-  const resetPagination = () => {
-    // Resetting pagination state
-    setCurrentPage(1);
-    setLoadingMore(false);
-    setHasMoreData(true);
-    setAllRecipes([]);
   };
 
   // Actualizar página
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      // Starting refresh...
-      // Resetear completamente el estado de paginación
-      resetPagination();
-      
       // Cargar mapas de IDs y recetas en paralelo
       await Promise.all([
         loadIdMaps(), // Cargar mapas dinámicos
         fetchLatestThree(),
-        fetchAllRecipes(1, false) // Cargar primera página de la lista principal
+        fetchAllRecipes() // Cargar todas las recetas
       ]);
       
-      // Refresh completed
     } catch (error) {
       console.error('❌ Error al actualizar:', error);
     } finally {
@@ -283,8 +223,7 @@ const HomeScreen = () => {
     setTimeout(() => {
       // Solo recargar si no estamos en una búsqueda activa ni con filtros aplicados
       if (search.trim().length === 0 && (!filters.include?.length && !filters.exclude?.length && !filters.categories?.length)) {
-        resetPagination();
-        fetchAllRecipes(1, false);
+        fetchAllRecipes();
       }
     }, 0);
   }, [sortOrder]);
@@ -623,37 +562,6 @@ useEffect(() => {
         ListEmptyComponent={
           isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
         }
-        ListFooterComponent={() => {
-          // Solo mostrar loading cuando estamos en la lista principal
-          if (search.trim().length === 0 && filteredRecipes === null) {
-            if (loadingMore) {
-              return (
-                <View style={{ padding: 20, alignItems: 'center' }}>
-                  <Text>Cargando más recetas...</Text>
-                </View>
-              );
-            }
-            if (!hasMoreData && allRecipes.length > 0) {
-              return (
-                <View style={{ padding: 20, alignItems: 'center' }}>
-                  <Text style={{ color: '#666' }}>No hay más recetas</Text>
-                </View>
-              );
-            }
-          }
-          return null;
-        }}
-        onEndReached={(info) => {
-          // Solo cargar más si estamos en la lista principal (sin búsqueda ni filtros)
-          if (search.trim().length === 0 && 
-              filteredRecipes === null && 
-              !loadingMore && 
-              hasMoreData &&
-              !refreshing) {
-            loadMoreRecipes();
-          }
-        }}
-        onEndReachedThreshold={0.5}
         // Agregar espacio inferior para evitar superposición con TabBar
         contentInsetAdjustmentBehavior="automatic"
       />
