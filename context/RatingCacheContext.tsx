@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../constants';
 
 interface RatingData {
@@ -33,15 +33,50 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [updateCounter, setUpdateCounter] = useState(0); // Contador para forzar re-renders
   const [isLoadingAll, setIsLoadingAll] = useState(false); // Estado para carga masiva
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false); // Flag para carga inicial
+  const pendingNoRatingRecipes = useRef<Set<string>>(new Set());
+
+  // Efecto para procesar las recetas pendientes de marcar como sin valoración
+  useEffect(() => {
+    if (isInitialLoadComplete && pendingNoRatingRecipes.current.size > 0) {
+      const updates: RatingCache = {};
+      pendingNoRatingRecipes.current.forEach(recipeId => {
+        if (!cache[recipeId]) { // Solo si no está ya en cache
+          updates[recipeId] = { promedio: 0, votos: 0 };
+        }
+      });
+      
+      if (Object.keys(updates).length > 0) {
+        setCache(prev => ({ ...prev, ...updates }));
+        setUpdateCounter(prev => prev + 1);
+      }
+      
+      pendingNoRatingRecipes.current.clear();
+    }
+  }, [isInitialLoadComplete, cache]);
 
   const getRating = useCallback((recipeId: string): RatingData | undefined => {
     const rating = cache[recipeId];
-    // Solo loggear para debug específico
-    if (recipeId === '1' && rating) {
-      // Cache hit para rating
+    
+    // Si ya existe en cache, devolverlo
+    if (rating) {
+      return rating;
     }
-    return rating;
-  }, [cache]);
+    
+    // Si la carga inicial está completa, marcar como sin valoración
+    if (isInitialLoadComplete) {
+      console.log(`📝 Marcando receta ${recipeId} como sin valoración (carga inicial completa)`);
+      const noRatingData = { promedio: 0, votos: 0 };
+      
+      // Agregar a pendientes para procesamiento posterior
+      pendingNoRatingRecipes.current.add(recipeId);
+      
+      return noRatingData;
+    }
+    
+    // Log para debug
+    console.log(`⏳ Receta ${recipeId} sin valoración en cache, carga inicial aún no completa`);
+    return undefined;
+  }, [cache, isInitialLoadComplete]);
 
   const isLoading = useCallback((recipeId: string): boolean => {
     return loading.has(recipeId);
