@@ -1,5 +1,5 @@
 // screens/RecipeDetailsScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -23,61 +23,169 @@ const RecipeDetailsScreen = () => {
   const [portions, setPortions] = useState(1);
   const [recipeWithDetails, setRecipeWithDetails] = useState<Recipe>(recipe);
   const [loading, setLoading] = useState(false);
+  const [detailsLoaded, setDetailsLoaded] = useState(false);
+  const [ratingsLoaded, setRatingsLoaded] = useState(false);
+
+  // Optimización: Calcular estado inicial de datos
+  const initialDataState = useMemo(() => {
+    const hasIngredients = recipe.ingredients && recipe.ingredients.length > 0;
+    const hasSteps = recipe.steps && recipe.steps.length > 0;
+    return {
+      hasIngredients,
+      hasSteps,
+      isDataComplete: hasIngredients && hasSteps
+    };
+  }, [recipe.ingredients, recipe.steps]);
+
+  // Optimización: Marcar como cargado inmediatamente si ya tenemos datos
+  useEffect(() => {
+    if (initialDataState.isDataComplete) {
+      setDetailsLoaded(true);
+      setRatingsLoaded(true); // Inicialmente true para mostrar contenido
+    }
+  }, [initialDataState.isDataComplete]);
 
   // Cargar ingredientes y pasos al entrar en la pantalla
   useEffect(() => {
     const loadRecipeDetails = async () => {
-      setLoading(true);
-      try {
-        console.log('🔍 Cargando detalles de receta:', recipe.id);
+      // Si ya tenemos datos completos, solo cargar valoraciones en background
+      if (initialDataState.isDataComplete) {
+        console.log('🚀 Carga ultra-rápida: datos ya completos');
         
-        // Cargar detalles completos de la receta
-        const completeRecipe = await getRecipeDetails(recipe.id);
+        // Cargar valoraciones en background sin afectar UI
+        ratingCache.loadAndUpdateRating(recipe.id).catch(error => {
+          console.error('❌ Error al cargar valoraciones:', error);
+        });
+        return;
+      }
+
+      // Solo cargar si faltan datos críticos
+      setLoading(true);
+      
+      try {
+        console.log('🔍 Carga rápida: completando datos faltantes');
+        
+        // Usar Promise.all para máxima velocidad (más rápido que allSettled)
+        const [completeRecipe] = await Promise.all([
+          getRecipeDetails(recipe.id)
+        ]);
         
         if (completeRecipe) {
           setRecipeWithDetails(completeRecipe);
-          console.log('✅ Detalles cargados:', {
-            ingredients: completeRecipe.ingredients?.length || 0,
-            steps: completeRecipe.steps?.length || 0
-          });
+          console.log('✅ Datos actualizados');
         } else {
-          console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
+          setRecipeWithDetails(recipe);
         }
         
-        // Cargar información de valoración específica y actualizar el cache
-        await ratingCache.loadAndUpdateRating(recipe.id);
+        setDetailsLoaded(true);
+        
+        // Cargar valoraciones después sin bloquear
+        ratingCache.loadAndUpdateRating(recipe.id).catch(error => {
+          console.error('❌ Error al cargar valoraciones:', error);
+        });
         
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
+        setRecipeWithDetails(recipe);
+        setDetailsLoaded(true);
       } finally {
         setLoading(false);
       }
     };
 
     loadRecipeDetails();
-  }, [recipe.id, getRecipeDetails]); // Quitar ratingCache de las dependencias
+  }, [recipe.id, getRecipeDetails, initialDataState.isDataComplete]); // Agregar initialDataState como dependencia
 
-  const adjustQuantity = (qty: number) => Math.round(qty * portions);
+  const adjustQuantity = useCallback((qty: number) => Math.round(qty * portions), [portions]);
 
-  // Obtener datos de valoración del cache
-  const ratingData = ratingCache.getRating(recipe.id);
+  // Optimización: Memorizar datos de valoración
+  const ratingData = useMemo(() => ratingCache.getRating(recipe.id), [ratingCache, recipe.id]);
   const averageRating = ratingData?.promedio || 0;
   const voteCount = ratingData?.votos || 0;
   const isRatingLoaded = ratingData !== undefined;
 
-  // Callback para actualizar la valoración cuando el usuario vota
-  const handleRatingUpdate = (newRating: number, newVoteCount: number) => {
+  // Optimización: Memorizar callback de actualización
+  const handleRatingUpdate = useCallback((newRating: number, newVoteCount: number) => {
     console.log('🔄 Actualizando valoración:', newRating, 'votos:', newVoteCount);
     ratingCache.updateRating(recipe.id, { promedio: newRating, votos: newVoteCount });
-  };
+  }, [ratingCache, recipe.id]);
+
+  // Optimización: Memorizar handlers de porciones
+  const decreasePortions = useCallback(() => {
+    setPortions(prev => Math.max(1, prev - 1));
+  }, []);
+
+  const increasePortions = useCallback(() => {
+    setPortions(prev => prev + 1);
+  }, []);
+
+  // Optimización: Memorizar ingredientes renderizados
+  const ingredientsList = useMemo(() => {
+    if (!recipeWithDetails.ingredients?.length) {
+      return <Text style={styles.ingredientText}>No hay ingredientes disponibles</Text>;
+    }
+    
+    return recipeWithDetails.ingredients.map((ing, index) => (
+      <Text
+        key={`ingredient-${ing.id || index}`}
+        style={styles.ingredientText}
+      >
+        • {ing.name} ({adjustQuantity(Number(ing.quantity))} {ing.unit || 'g'})
+      </Text>
+    ));
+  }, [recipeWithDetails.ingredients, adjustQuantity]);
+
+  // Optimización: Memorizar pasos renderizados
+  const stepsList = useMemo(() => {
+    if (!recipeWithDetails.steps?.length) {
+      return <Text style={styles.stepText}>No hay pasos disponibles</Text>;
+    }
+    
+    return recipeWithDetails.steps.map((step, index) => (
+      <View key={`step-${step.order || index}`} style={styles.stepCard}>
+        {step.image && (
+          <Image
+            source={step.image}
+            style={styles.stepImg}
+            resizeMode="cover"
+            onError={() => console.log(`Error cargando imagen paso ${index + 1}`)}
+          />
+        )}
+        <Text style={styles.stepText}>
+          {index + 1}. {step.text || step.description}
+        </Text>
+      </View>
+    ));
+  }, [recipeWithDetails.steps]);
+
+  // Optimización: Pre-cargar imagen principal
+  const mainImageSource = useMemo(() => recipeWithDetails.image, [recipeWithDetails.image]);
+
+  // Optimización: Memorizar callbacks de navegación
+  const handleBackPress = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
+  const handleFavoritePress = useCallback(() => {
+    toggleFavorite(recipeWithDetails);
+  }, [toggleFavorite, recipeWithDetails]);
+
+  const handleGoToMyRecipes = useCallback(() => {
+    navigation.navigate('HomeTabs', { screen: 'Mis Recetas'});
+  }, [navigation]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={recipeWithDetails.image} style={styles.image} />
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      <Image 
+        source={mainImageSource} 
+        style={styles.image}
+        resizeMode="cover"
+        onError={() => console.log('Error cargando imagen principal')}
+      />
+      <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(recipeWithDetails)}>
+      <TouchableOpacity style={styles.favoriteButton} onPress={handleFavoritePress}>
         <Ionicons
           name={isFavorite(recipeWithDetails.id) ? 'heart' : 'heart-outline'}
           size={26}
@@ -106,48 +214,28 @@ const RecipeDetailsScreen = () => {
       <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
       <Text style={styles.section}>Ingredientes</Text>
-      {loading ? (
+      {!detailsLoaded ? (
         <LoadingSpinner text="Cargando ingredientes..." />
       ) : (
         <>
           <View style={styles.portionsRow}>
-            <TouchableOpacity onPress={() => setPortions(Math.max(1, portions - 1))}>
+            <TouchableOpacity onPress={decreasePortions}>
               <Ionicons name="remove-circle-outline" size={22} />
             </TouchableOpacity>
             <Text style={{ marginHorizontal: 10 }}>{portions} porciones</Text>
-            <TouchableOpacity onPress={() => setPortions(portions + 1)}>
+            <TouchableOpacity onPress={increasePortions}>
               <Ionicons name="add-circle-outline" size={22} />
             </TouchableOpacity>
           </View>
-          {recipeWithDetails.ingredients?.map((ing, index) => 
-            React.createElement(Text, {
-              key: `ingredient-${ing.id || index}`,
-              style: styles.ingredientText
-            }, `• ${ing.name} (${adjustQuantity(Number(ing.quantity))} ${ing.unit || 'g'})`)
-          )}
+          {ingredientsList}
         </>
       )}
 
       <Text style={styles.section}>Pasos</Text>
-      {loading ? (
+      {!detailsLoaded ? (
         <LoadingSpinner text="Cargando pasos..." />
       ) : (
-        recipeWithDetails.steps?.map((step, index) => 
-          React.createElement(View, {
-            key: `step-${step.order || index}`,
-            style: styles.stepCard
-          }, [
-            step.image ? React.createElement(Image, {
-              key: 'image',
-              source: step.image,
-              style: styles.stepImg
-            }) : null,
-            React.createElement(Text, {
-              key: 'text',
-              style: styles.stepText
-            }, `${index + 1}. ${step.text || step.description}`)
-          ].filter(Boolean))
-        )
+        stepsList
       )}
 
       {/* Valoración y Comentarios */}
@@ -169,7 +257,7 @@ const RecipeDetailsScreen = () => {
           alignItems: 'center',
           marginVertical: 16,
         }}
-        onPress={() => navigation.navigate('HomeTabs', { screen: 'Mis Recetas'})}
+        onPress={handleGoToMyRecipes}
       >
         <Text style={{ color: 'white', fontWeight: 'bold' }}>Volver a Mis Recetas</Text>
       </TouchableOpacity>
