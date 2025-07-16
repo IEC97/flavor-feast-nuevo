@@ -6,16 +6,19 @@ import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
+import { useUserContext } from '../context/UserContext';
 import RatingComments from '../components/RatingComments';
 import StarRating from '../components/StarRating';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext';
+import { API_BASE_URL } from '../constants';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
   const { toggleFavorite, isFavorite, getRecipeDetails, getRecipeAverageRating } = useRecipeContext();
+  const { user } = useUserContext();
   const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
 
   const { fromEdit } = route.params || {};
@@ -25,6 +28,8 @@ const RecipeDetailsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [detailsLoaded, setDetailsLoaded] = useState(false);
   const [ratingsLoaded, setRatingsLoaded] = useState(false);
+  const [userRating, setUserRating] = useState<number>(0);
+  const [ratingsWithComments, setRatingsWithComments] = useState<any>(null);
 
   // Optimización: Calcular estado inicial de datos
   const initialDataState = useMemo(() => {
@@ -45,12 +50,51 @@ const RecipeDetailsScreen = () => {
     }
   }, [initialDataState.isDataComplete]);
 
+  // Función para cargar datos de puntuación con comentarios
+  const loadRatingsWithComments = useCallback(async () => {
+    try {
+      console.log('🔍 Cargando puntuaciones con comentarios...');
+      const response = await fetch(`${API_BASE_URL}/recipes/${recipe.id}/puntuacion&incluirComentarios=1`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const json = await response.json();
+      
+      if (json.status === 200 && json.data) {
+        setRatingsWithComments(json.data);
+        
+        // Buscar la valoración del usuario actual
+        if (user?.id && json.data.comentarios) {
+          const userRatingData = json.data.comentarios.find(
+            (comentario: any) => Number(comentario.idUsuario) === Number(user.id)
+          );
+          if (userRatingData) {
+            setUserRating(userRatingData.puntuacion);
+          }
+        }
+        
+        console.log('✅ Puntuaciones cargadas:', {
+          promedio: json.data.promedio,
+          cantidadVotos: json.data.cantidadVotos,
+          comentarios: json.data.comentarios?.length || 0
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar puntuaciones:', error);
+    }
+  }, [recipe.id, user?.id]);
+
   // Cargar ingredientes y pasos al entrar en la pantalla
   useEffect(() => {
     const loadRecipeDetails = async () => {
       // Si ya tenemos datos completos, solo cargar valoraciones en background
       if (initialDataState.isDataComplete) {
         console.log('🚀 Carga ultra-rápida: datos ya completos');
+        
+        // Cargar puntuaciones con comentarios
+        await loadRatingsWithComments();
         
         // Cargar valoraciones en background sin afectar UI
         ratingCache.loadAndUpdateRating(recipe.id).catch(error => {
@@ -65,9 +109,10 @@ const RecipeDetailsScreen = () => {
       try {
         console.log('🔍 Carga rápida: completando datos faltantes');
         
-        // Usar Promise.all para máxima velocidad (más rápido que allSettled)
+        // Cargar datos de receta y puntuaciones en paralelo
         const [completeRecipe] = await Promise.all([
-          getRecipeDetails(recipe.id)
+          getRecipeDetails(recipe.id),
+          loadRatingsWithComments()
         ]);
         
         if (completeRecipe) {
@@ -94,12 +139,26 @@ const RecipeDetailsScreen = () => {
     };
 
     loadRecipeDetails();
-  }, [recipe.id, getRecipeDetails, initialDataState.isDataComplete]); // Agregar initialDataState como dependencia
+  }, [recipe.id, getRecipeDetails, initialDataState.isDataComplete, loadRatingsWithComments]); // Agregar loadRatingsWithComments como dependencia
 
   const adjustQuantity = useCallback((qty: number) => Math.round(qty * portions), [portions]);
 
+  // Verificar si es una receta propia
+  const isOwnRecipe = useMemo(() => {
+    return user?.id && recipeWithDetails.userId && Number(user.id) === Number(recipeWithDetails.userId);
+  }, [user?.id, recipeWithDetails.userId]);
+
   // Optimización: Memorizar datos de valoración
-  const ratingData = useMemo(() => ratingCache.getRating(recipe.id), [ratingCache, recipe.id]);
+  const ratingData = useMemo(() => {
+    if (ratingsWithComments) {
+      return {
+        promedio: ratingsWithComments.promedio,
+        votos: ratingsWithComments.cantidadVotos
+      };
+    }
+    return ratingCache.getRating(recipe.id);
+  }, [ratingsWithComments, ratingCache, recipe.id]);
+  
   const averageRating = ratingData?.promedio || 0;
   const voteCount = ratingData?.votos || 0;
   const isRatingLoaded = ratingData !== undefined;
@@ -108,7 +167,10 @@ const RecipeDetailsScreen = () => {
   const handleRatingUpdate = useCallback((newRating: number, newVoteCount: number) => {
     console.log('🔄 Actualizando valoración:', newRating, 'votos:', newVoteCount);
     ratingCache.updateRating(recipe.id, { promedio: newRating, votos: newVoteCount });
-  }, [ratingCache, recipe.id]);
+    
+    // Recargar datos de puntuación después de actualizar
+    loadRatingsWithComments();
+  }, [ratingCache, recipe.id, loadRatingsWithComments]);
 
   // Optimización: Memorizar handlers de porciones
   const decreasePortions = useCallback(() => {
@@ -211,6 +273,23 @@ const RecipeDetailsScreen = () => {
           <Text style={styles.ratingText}>Cargando valoración...</Text>
         )}
       </View>
+      
+      {/* Mostrar valoración del usuario si existe */}
+      {user && !isOwnRecipe && userRating > 0 && (
+        <View style={styles.userRatingContainer}>
+          <Text style={styles.userRatingLabel}>Tu valoración:</Text>
+          <StarRating rating={userRating} size={18} />
+          <Text style={styles.userRatingText}>({userRating}/5)</Text>
+        </View>
+      )}
+      
+      {/* Mostrar mensaje si es receta propia */}
+      {isOwnRecipe && (
+        <View style={styles.ownRecipeContainer}>
+          <Text style={styles.ownRecipeText}>Esta es tu receta - No puedes valorarla</Text>
+        </View>
+      )}
+      
       <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
       <Text style={styles.section}>Ingredientes</Text>
@@ -245,6 +324,9 @@ const RecipeDetailsScreen = () => {
         currentRating={averageRating}
         onRatingUpdate={handleRatingUpdate}
         idAutor={recipeWithDetails.userId ?? -1}
+        ratingsWithComments={ratingsWithComments}
+        userRating={userRating}
+        isOwnRecipe={!!isOwnRecipe}
       />
 
       {/* Botón solo si vienes de editar */}
@@ -352,6 +434,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
+  },
+  userRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    backgroundColor: '#f0f8ff',
+    padding: 8,
+    borderRadius: 6,
+  },
+  userRatingLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginRight: 8,
+    fontWeight: '500',
+  },
+  userRatingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  ownRecipeContainer: {
+    backgroundColor: '#fff3cd',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#ffeaa7',
+  },
+  ownRecipeText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

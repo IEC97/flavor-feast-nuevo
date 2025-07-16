@@ -20,18 +20,23 @@ interface RatingCommentsProps {
   currentRating: number;
   idAutor: number;
   onRatingUpdate?: (newRating: number, voteCount: number) => void;
+  ratingsWithComments?: any;
+  userRating?: number;
+  isOwnRecipe?: boolean;
 }
 
 const RatingComments: React.FC<RatingCommentsProps> = ({ 
   recipeId, 
   currentRating, 
   idAutor,
-  onRatingUpdate 
+  onRatingUpdate,
+  ratingsWithComments,
+  userRating: initialUserRating = 0,
+  isOwnRecipe = false
 }) => {
   const { user } = useUserContext();
-  const isOwnRecipe = Number(user?.id) === Number(idAutor);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [userRating, setUserRating] = useState<number>(0);
+  const [userRating, setUserRating] = useState<number>(initialUserRating);
   const [newComment, setNewComment] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [ratingInfo, setRatingInfo] = useState<{promedio: number, cantidadVotos: number}>({
@@ -41,12 +46,102 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
   const [comentarios, setComentarios] = useState([]);
 
   useEffect(() => {
-    loadComments();
-    loadRatingInfo();
-    if (user?.id) {
-      loadUserRating();
+    if (ratingsWithComments) {
+      // Usar datos de puntuación pasados como props
+      setRatingInfo({
+        promedio: ratingsWithComments.promedio,
+        cantidadVotos: ratingsWithComments.cantidadVotos
+      });
+      
+      // Procesar comentarios con puntuaciones
+      if (ratingsWithComments.comentarios) {
+        loadCommentsWithRatings(ratingsWithComments.comentarios);
+      }
+    } else {
+      // Fallback a la carga tradicional
+      loadComments();
+      loadRatingInfo();
     }
-  }, [recipeId, user?.id]);
+    
+    if (user?.id) {
+      setUserRating(initialUserRating);
+    }
+  }, [recipeId, user?.id, ratingsWithComments, initialUserRating]);
+
+  const loadCommentsWithRatings = async (commentRatings: any[]) => {
+    try {
+      console.log('🔍 Cargando comentarios con puntuaciones...');
+      console.log('📊 Datos de puntuación recibidos:', commentRatings);
+      
+      const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comentario`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const json = await response.json();
+      console.log('📥 Respuesta del endpoint /comentario:', json);
+      
+      if (json.status === 200 && json.data) {
+        console.log('📊 Comentarios del endpoint:', json.data.map((c: any) => ({
+          id: c.idComentario,
+          usuario: c.usuario,
+          descripcion: c.descripcion?.substring(0, 50) + '...'
+        })));
+        
+        // Mapear comentarios con sus puntuaciones
+        const recentComments = json.data
+          .reverse().slice(0, 10)
+          .map((c: any) => {
+            // Buscar la puntuación para este comentario
+            const ratingData = commentRatings.find(
+              (rating: any) => rating.idComentario === c.idComentario
+            );
+            
+            console.log('🔍 Buscando puntuación para comentario:', {
+              comentarioId: c.idComentario,
+              usuario: c.usuario,
+              ratingDataFound: !!ratingData,
+              ratingData: ratingData,
+              availableRatings: commentRatings.map(r => ({ id: r.idComentario, puntuacion: r.puntuacion }))
+            });
+            
+            const commentWithRating = {
+              id: c.idComentario,
+              description: c.descripcion,
+              approved: true,
+              username: c.usuario || 'Usuario anónimo',
+              createdAt: c.fechaCreacion,
+              rating: ratingData ? ratingData.puntuacion : null // null si no hay puntuación
+            };
+            
+            console.log('📝 Comentario mapeado:', {
+              id: commentWithRating.id,
+              username: commentWithRating.username,
+              rating: commentWithRating.rating,
+              hasRatingData: !!ratingData
+            });
+            
+            return commentWithRating;
+          });
+        
+        setComments(recentComments);
+        console.log('🚀🚀🚀 COMENTARIOS ACTUALIZADOS CON PUNTUACIONES! 🚀🚀🚀');
+        console.log('✅ Comentarios con puntuaciones cargados:', recentComments.length);
+        console.log('📋 Comentarios finales:', recentComments.map((c: any) => ({
+          id: c.id,
+          username: c.username,
+          rating: c.rating,
+          hasRating: c.rating !== null && c.rating !== undefined
+        })));
+        console.log('🚀🚀🚀 FIN DE ACTUALIZACION 🚀🚀🚀');
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar comentarios con puntuaciones:', error);
+      // Fallback a carga tradicional
+      loadComments();
+    }
+  };
 
   const loadRatingInfo = async () => {
     try {
@@ -100,7 +195,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
       }
       
       if (json.status === 200 && json.data) {
-        // Tomar solo los últimos 2 comentarios
+        // Tomar solo los últimos 10 comentarios
         const recentComments = json.data
           .reverse().slice(0, 10)
           .map((c: any) => ({
@@ -109,7 +204,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
             approved: true,
             username: c.usuario || 'Usuario anónimo',
             createdAt: c.fechaCreacion,
-            rating: typeof c.puntuacion === 'number' ? c.puntuacion : 0
+            rating: typeof c.puntuacion === 'number' ? c.puntuacion : null
           }));
         setComments(recentComments);
       }
@@ -224,7 +319,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
     try {
       setLoading(true);
       
-      const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comments`, {
+      const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comentario`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -294,10 +389,16 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
       {user && (
         <View style={styles.userRating}>
           <View style={styles.ratingRow}>
-            <Text style={styles.ratingText}>Tu valoración:</Text>
-            {renderStars(userRating, submitRating, 24)}
+            <Text style={styles.ratingText}>
+              {isOwnRecipe ? 'Tu receta:' : 'Tu valoración:'}
+            </Text>
+            {isOwnRecipe ? (
+              <Text style={styles.ownRecipeText}>No puedes valorar tu propia receta</Text>
+            ) : (
+              renderStars(userRating, submitRating, 24)
+            )}
           </View>
-          {userRating > 0 && (
+          {!isOwnRecipe && userRating > 0 && (
             <Text style={styles.userRatingText}>Has valorado con {userRating} estrellas</Text>
           )}
         </View>
@@ -309,15 +410,26 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
         {comments.length === 0 ? (
           <Text style={styles.noComments}>No hay comentarios aún</Text>
         ) : (
-          comments.map((comment) => (
-            <View key={comment.id} style={styles.commentCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={styles.commentAuthor}>{comment.username}</Text>
-                {typeof comment.rating === 'number' && renderStars(comment.rating, undefined, 16)}
+          comments.map((comment) => {
+            console.log('🎨 Renderizando comentario:', {
+              id: comment.id,
+              username: comment.username,
+              rating: comment.rating,
+              shouldShowStars: comment.rating !== null && comment.rating !== undefined
+            });
+            
+            return (
+              <View key={comment.id} style={styles.commentCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.commentAuthor}>{comment.username}</Text>
+                  {comment.rating !== null && comment.rating !== undefined && (
+                    <StarRating rating={comment.rating} size={16} />
+                  )}
+                </View>
+                <Text style={styles.commentText}>{comment.description}</Text>
               </View>
-              <Text style={styles.commentText}>{comment.description}</Text>
-            </View>
-          ))
+            );
+          })
         )}
       </View>
 
@@ -505,6 +617,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     padding: 16,
+  },
+  ownRecipeText: {
+    fontSize: 14,
+    color: '#856404',
+    fontStyle: 'italic',
+    flex: 1,
   },
 });
 
