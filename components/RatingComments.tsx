@@ -126,15 +126,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
           });
         
         setComments(recentComments);
-        console.log('🚀🚀🚀 COMENTARIOS ACTUALIZADOS CON PUNTUACIONES! 🚀🚀🚀');
-        console.log('✅ Comentarios con puntuaciones cargados:', recentComments.length);
-        console.log('📋 Comentarios finales:', recentComments.map((c: any) => ({
-          id: c.id,
-          username: c.username,
-          rating: c.rating,
-          hasRating: c.rating !== null && c.rating !== undefined
-        })));
-        console.log('🚀🚀🚀 FIN DE ACTUALIZACION 🚀🚀🚀');
+        console.log('✅ Comentarios cargados con puntuaciones:', recentComments.length);
       }
     } catch (error) {
       console.error('❌ Error al cargar comentarios con puntuaciones:', error);
@@ -410,26 +402,17 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
         {comments.length === 0 ? (
           <Text style={styles.noComments}>No hay comentarios aún</Text>
         ) : (
-          comments.map((comment) => {
-            console.log('🎨 Renderizando comentario:', {
-              id: comment.id,
-              username: comment.username,
-              rating: comment.rating,
-              shouldShowStars: comment.rating !== null && comment.rating !== undefined
-            });
-            
-            return (
-              <View key={comment.id} style={styles.commentCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={styles.commentAuthor}>{comment.username}</Text>
-                  {comment.rating !== null && comment.rating !== undefined && (
-                    <StarRating rating={comment.rating} size={16} />
-                  )}
-                </View>
-                <Text style={styles.commentText}>{comment.description}</Text>
+          comments.map((comment) => (
+            <View key={comment.id} style={styles.commentCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={styles.commentAuthor}>{comment.username}</Text>
+                {comment.rating !== null && comment.rating !== undefined && (
+                  <StarRating rating={comment.rating} size={16} />
+                )}
               </View>
-            );
-          })
+              <Text style={styles.commentText}>{comment.description}</Text>
+            </View>
+          ))
         )}
       </View>
 

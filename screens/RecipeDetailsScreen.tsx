@@ -75,11 +75,7 @@ const RecipeDetailsScreen = () => {
           }
         }
         
-        console.log('✅ Puntuaciones cargadas:', {
-          promedio: json.data.promedio,
-          cantidadVotos: json.data.cantidadVotos,
-          comentarios: json.data.comentarios?.length || 0
-        });
+        console.log('✅ Puntuaciones cargadas para receta:', recipe.id);
       }
     } catch (error) {
       console.error('❌ Error al cargar puntuaciones:', error);
