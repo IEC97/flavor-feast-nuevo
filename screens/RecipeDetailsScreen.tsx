@@ -31,6 +31,17 @@ const RecipeDetailsScreen = () => {
   const [userRating, setUserRating] = useState<number>(0);
   const [ratingsWithComments, setRatingsWithComments] = useState<any>(null);
 
+  // Debug: Verificar qué datos llegan inicialmente
+  console.log('🔍 Receta inicial - descripción:', recipe.description);
+  console.log('🔍 Receta inicial - título:', recipe.title);
+  console.log('🔍 Receta inicial - objeto completo:', {
+    id: recipe.id,
+    title: recipe.title,
+    description: recipe.description,
+    hasDescription: !!recipe.description,
+    descriptionLength: recipe.description?.length || 0
+  });
+
   // Optimización: Calcular estado inicial de datos
   const initialDataState = useMemo(() => {
     const hasIngredients = recipe.ingredients && recipe.ingredients.length > 0;
@@ -114,8 +125,17 @@ const RecipeDetailsScreen = () => {
         if (completeRecipe) {
           setRecipeWithDetails(completeRecipe);
           console.log('✅ Datos actualizados');
+          console.log('🔍 Descripción de la receta:', completeRecipe.description);
+          console.log('🔍 Receta completa debug:', {
+            id: completeRecipe.id,
+            title: completeRecipe.title,
+            description: completeRecipe.description,
+            hasDescription: !!completeRecipe.description,
+            descriptionLength: completeRecipe.description?.length || 0
+          });
         } else {
           setRecipeWithDetails(recipe);
+          console.log('🔍 Descripción de la receta original:', recipe.description);
         }
         
         setDetailsLoaded(true);
@@ -270,7 +290,14 @@ const RecipeDetailsScreen = () => {
         )}
       </View>
       
-      <Text style={styles.description}>{recipeWithDetails.description}</Text>
+      <Text style={styles.description}>
+        {(() => {
+          console.log('🔍 RENDER - Descripción a mostrar:', recipeWithDetails.description);
+          console.log('🔍 RENDER - Tipo de descripción:', typeof recipeWithDetails.description);
+          console.log('🔍 RENDER - Booleano descripción:', !!recipeWithDetails.description);
+          return recipeWithDetails.description || 'No hay descripción disponible';
+        })()}
+      </Text>
 
       <Text style={styles.section}>Ingredientes</Text>
       {!detailsLoaded ? (

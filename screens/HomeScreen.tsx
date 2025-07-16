@@ -151,6 +151,7 @@ const HomeScreen = () => {
           author: item.usuario,
           createdAt: new Date(item.fechaPublicacion).getTime(),
           rating: 0, // No usar rating hardcodeado
+          description: item.descripcion || item.description || '', // Agregar descripción
         }));
         
         setLatestRecipes(adaptedData);
@@ -185,6 +186,7 @@ const HomeScreen = () => {
           author: item.usuario,
           createdAt: new Date(item.fechaPublicacion).getTime(),
           rating: 0,
+          description: item.descripcion || item.description || '', // Agregar descripción
         }));
         
         setAllRecipes(adaptedData);
@@ -299,6 +301,7 @@ const HomeScreen = () => {
           author: item.usuario,
           createdAt: new Date(item.fechaPublicacion).getTime(),
           rating: 5,
+          description: item.descripcion || item.description || '', // Agregar descripción
         }));
         setSearchResults(adaptedData);
       } else {
@@ -412,6 +415,7 @@ useEffect(() => {
           author: item.usuario,
           createdAt: new Date(item.fecha).getTime(),
           rating: 5,
+          description: item.descripcion || item.description || '', // Agregar descripción
         }));
         if (!cancelled) setFilteredRecipes(adaptedData);
       } else {

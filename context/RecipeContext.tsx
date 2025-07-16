@@ -84,7 +84,16 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             categoryId: r.tipoId,
             servings: r.porciones,
             userId: r.idUsuario, // Guardamos el ID del usuario para comparar después
+            description: r.descripcion || '', // Agregamos la descripción
           }));
+
+          // Debug: Verificar si las descripciones están llegando
+          console.log('🔍 Verificando descripciones en mapeo:', mapped.slice(0, 3).map((r: Recipe) => ({
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            descripcionOriginal: json.data.find((orig: any) => orig.idReceta.toString() === r.id)?.descripcion
+          })));
 
           // console.log('✅ Recetas cargadas:', mapped.length); // Comentado para evitar duplicados
           setRecipes(mapped);
@@ -606,6 +615,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           categoryId: r.tipo,
           servings: 1,
           userId: 0,
+          description: r.descripcion || '', // Agregamos la descripción
         }));
         
         console.log('✅ Favoritos cargados:', mapped.length);
