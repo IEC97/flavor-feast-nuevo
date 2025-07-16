@@ -16,6 +16,7 @@ import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe, Step, RootStackParamList } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const RecipeStepsScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -26,7 +27,9 @@ const RecipeStepsScreen = () => {
 
   const [steps, setSteps] = useState(recipe?.steps || []);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   //const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
 
   const addStep = () => {
@@ -64,21 +67,22 @@ const RecipeStepsScreen = () => {
       return;
     }
 
-    // Crear la receta completa con los pasos validados
-    const completeRecipe = {
-      ...recipe,
-      steps: validSteps,
-    };
-
+    setSaving(true);
     try {
+      // Crear la receta completa con los pasos validados
+      const completeRecipe = {
+        ...recipe,
+        steps: validSteps,
+      };
+
       // Si la receta tiene un ID (y es creada por el usuario), estamos editando una receta existente
       if (recipe.id && recipe.id.trim() !== '' && recipe.createdByUser) {
-        console.log('Editando receta existente con ID:', recipe.id);
+
         await editRecipe(recipe.id, completeRecipe);
         setIsEditing(true);
         setShowSuccessModal(true);
       } else {
-        // Si no tiene ID o no es creada por el usuario, es una nueva receta        console.log('Creando nueva receta - ID:', recipe.id, 'createdByUser:', recipe.createdByUser);
+        // Si no tiene ID o no es creada por el usuario, es una nueva receta
         await addRecipe(completeRecipe);
         
         // Mostrar modal de éxito
@@ -87,8 +91,9 @@ const RecipeStepsScreen = () => {
         //navigation.navigate('RecipeDetails', { recipe: completeRecipe });
       }
     } catch (error) {
-      console.error('Error al guardar la receta:', error);
-      Alert.alert('Error', 'No se pudo guardar la receta. Inténtalo de nuevo.');
+      setShowErrorModal(true);
+    } finally {
+      setSaving(false);
     }
   };
   
@@ -104,6 +109,10 @@ const RecipeStepsScreen = () => {
       // Si es una nueva receta, ir a "Mis Recetas"
       navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
     }
+  };
+
+  const handleCloseErrorModal = () => {
+    setShowErrorModal(false);
   };
   
 
@@ -152,7 +161,7 @@ const RecipeStepsScreen = () => {
             <Image 
               source={{ uri: step.imageUrl }} 
               style={styles.img}
-              onError={() => console.log('Error loading image:', step.imageUrl)}
+              onError={() => {/* Error loading image */}}
             />
           )}
         </View>
@@ -162,9 +171,17 @@ const RecipeStepsScreen = () => {
         <Text style={styles.addStep}>+ Agregar otro paso</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-        <Text style={styles.saveText}>Guardar receta</Text>
+      <TouchableOpacity 
+        style={[styles.saveBtn, saving && styles.saveBtnDisabled]} 
+        onPress={handleSave}
+        disabled={saving}
+      >
+        <Text style={styles.saveText}>
+          {saving ? 'Guardando...' : 'Guardar receta'}
+        </Text>
       </TouchableOpacity>
+
+      {saving && <LoadingSpinner text="Guardando receta..." />}
 
       <TouchableOpacity
         style={[styles.saveBtn, { backgroundColor: '#6c757d', marginTop: 10 }]}
@@ -204,6 +221,38 @@ const RecipeStepsScreen = () => {
           >
             <Text style={styles.successButtonText}>
               {isEditing ? 'Ver receta actualizada' : 'Volver al Inicio'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Modal de error */}
+    <Modal
+      visible={showErrorModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowErrorModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.errorIconContainer}>
+            <Text style={styles.errorIcon}>❌</Text>
+          </View>
+          
+          <Text style={styles.errorTitle}>
+            ¡Error al guardar la receta!
+          </Text>
+          <Text style={styles.errorMessage}>
+            No se pudo guardar la receta. Por favor, verifica tu conexión a internet e inténtalo de nuevo.
+          </Text>
+          
+          <TouchableOpacity 
+            style={styles.errorButton} 
+            onPress={handleCloseErrorModal}
+          >
+            <Text style={styles.errorButtonText}>
+              Intentar de nuevo
             </Text>
           </TouchableOpacity>
         </View>
@@ -297,6 +346,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 30,
   },
+  saveBtnDisabled: {
+    backgroundColor: '#6b7280',
+    padding: 14,
+    alignItems: 'center',
+    borderRadius: 30,
+    opacity: 0.7,
+  },
   saveText: {
     color: 'white',
     fontWeight: 'bold',
@@ -355,6 +411,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   successButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Estilos para el modal de error
+  errorIconContainer: {
+    marginBottom: 20,
+  },
+  errorIcon: {
+    fontSize: 60,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#dc3545',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 22,
+  },
+  errorButton: {
+    backgroundColor: '#dc3545',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+  },
+  errorButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',

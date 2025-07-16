@@ -19,6 +19,7 @@ import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe, RootStackParamList, AvailableIngredient } from '../types';
 import { useUserContext } from '../context/UserContext';
 import { Picker } from '@react-native-picker/picker';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { API_BASE_URL } from '../constants';
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
@@ -56,6 +57,7 @@ const RecipeFormScreen = () => {
   // Loader mientras el usuario se carga
   const [checkingUser, setCheckingUser] = useState(true);
   const [loadingRecipeDetails, setLoadingRecipeDetails] = useState(false);
+  const [saving, setSaving] = useState(false);
   const editingRecipe: Recipe | undefined = route.params?.recipe;
 
   const [imageUrl, setImageUrl] = useState<string>(() => {
@@ -238,10 +240,10 @@ const RecipeFormScreen = () => {
   if (checkingUser || loadingRecipeDetails) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#23294c" />
-        <Text style={{ marginTop: 10, color: '#666' }}>
-          {checkingUser ? 'Verificando usuario...' : 'Cargando datos de la receta...'}
-        </Text>
+        <LoadingSpinner 
+          size="large" 
+          text={checkingUser ? 'Verificando usuario...' : 'Cargando datos de la receta...'}
+        />
       </View>
     );
   }
@@ -288,7 +290,7 @@ const RecipeFormScreen = () => {
     }
   }; */
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!editingRecipe) {
       // Validaciones solo al crear nueva receta
       if (!title || !description || !servings || !categoryId) {
@@ -314,6 +316,9 @@ const RecipeFormScreen = () => {
         return;
       }
     }
+
+    setSaving(true);
+    try {
 
 
 
@@ -357,12 +362,18 @@ const RecipeFormScreen = () => {
         categoryId
       });
       
-      editRecipe(editingRecipe.id, recipeData);
+      await editRecipe(editingRecipe.id, recipeData);
       // Mostrar modal de éxito en lugar de navegar directamente
       setShowSuccessModal(true);
     } else {
       //addRecipe(recipeData);
       navigation.navigate('RecipeSteps', { recipe: recipeData });
+    }
+    } catch (error) {
+      console.error('Error al guardar:', error);
+      Alert.alert('Error', 'Hubo un problema al guardar la receta');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -626,11 +637,17 @@ const RecipeFormScreen = () => {
         <Text style={{ color: '#007BFF', marginBottom: 10 }}>+ Agregar ingrediente</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+      <TouchableOpacity 
+        style={[styles.submitButton, saving && styles.submitButtonDisabled]} 
+        onPress={handleSubmit}
+        disabled={saving}
+      >
         <Text style={styles.submitButtonText}>
-          {editingRecipe ? 'Guardar cambios' : 'Siguiente: Agregar Pasos'}
+          {saving ? 'Guardando...' : (editingRecipe ? 'Guardar cambios' : 'Siguiente: Agregar Pasos')}
         </Text>
       </TouchableOpacity>
+      
+      {saving && <LoadingSpinner text="Guardando receta..." />}
       
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelText}>Cancelar</Text>
@@ -759,6 +776,10 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 30,
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#bdc3c7',
+    opacity: 0.6,
   },
   submitButtonText: {
     color: 'white',

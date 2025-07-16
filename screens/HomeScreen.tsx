@@ -20,6 +20,7 @@ import { useSortContext } from '../context/SortContext';
 import { useUserContext } from '../context/UserContext'; 
 import { API_BASE_URL } from '../constants'; 
 import StarRating from '../components/StarRating'; 
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext'; 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'HomeTabs'>;
@@ -560,7 +561,7 @@ useEffect(() => {
           />
         }
         ListEmptyComponent={
-          isSearching ? <Text>Buscando...</Text> : <Text>No hay recetas.</Text>
+          isSearching ? <LoadingSpinner text="Buscando..." /> : <Text>No hay recetas.</Text>
         }
         // Agregar espacio inferior para evitar superposición con TabBar
         contentInsetAdjustmentBehavior="automatic"

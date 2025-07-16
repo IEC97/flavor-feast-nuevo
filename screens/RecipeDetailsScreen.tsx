@@ -8,6 +8,7 @@ import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import RatingComments from '../components/RatingComments';
 import StarRating from '../components/StarRating';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext';
 
 const RecipeDetailsScreen = () => {
@@ -106,10 +107,7 @@ const RecipeDetailsScreen = () => {
 
       <Text style={styles.section}>Ingredientes</Text>
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#23294c" />
-          <Text style={styles.loadingText}>Cargando ingredientes...</Text>
-        </View>
+        <LoadingSpinner text="Cargando ingredientes..." />
       ) : (
         <>
           <View style={styles.portionsRow}>
@@ -132,10 +130,7 @@ const RecipeDetailsScreen = () => {
 
       <Text style={styles.section}>Pasos</Text>
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#23294c" />
-          <Text style={styles.loadingText}>Cargando pasos...</Text>
-        </View>
+        <LoadingSpinner text="Cargando pasos..." />
       ) : (
         recipeWithDetails.steps?.map((step, index) => 
           React.createElement(View, {
@@ -258,16 +253,6 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 10,
     marginBottom: 6,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  loadingText: {
-    marginLeft: 8,
-    color: '#666',
   },
   ingredientText: {
     fontSize: 14,

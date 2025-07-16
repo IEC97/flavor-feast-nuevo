@@ -13,6 +13,7 @@ import { API_BASE_URL } from '../constants';
 import { useUserContext } from '../context/UserContext';
 import { Comment, Rating } from '../types';
 import StarRating from './StarRating';
+import LoadingSpinner from './LoadingSpinner';
 
 interface RatingCommentsProps {
   recipeId: string;
@@ -287,6 +288,8 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
 
   return (
     <View style={styles.container}>
+      {loading && <LoadingSpinner overlay text="Procesando..." />}
+      
       {/* Valoración del usuario */}
       {user && (
         <View style={styles.userRating}>

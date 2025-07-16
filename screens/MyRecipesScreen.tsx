@@ -19,6 +19,7 @@ import { useRecipeContext } from '../context/RecipeContext';
 import { useUserContext } from '../context/UserContext';
 import { useRatingCache } from '../context/RatingCacheContext';
 import StarRating from '../components/StarRating';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const MyRecipesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeForm'>>();
@@ -193,8 +194,7 @@ const MyRecipesScreen = () => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#13162e" />
-          <Text style={styles.loadingText}>Cargando tus recetas...</Text>
+          <LoadingSpinner size="large" text="Cargando tus recetas..." />
         </View>
       ) : !user ? (
         <View style={styles.emptyContainer}>

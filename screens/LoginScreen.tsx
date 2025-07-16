@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 import { useUser } from '../context/UserContext';
 import logo from '../assets/logo.png';
+import LoadingSpinner from '../components/LoadingSpinner';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -44,7 +45,7 @@ const LoginScreen = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
 
-  const { login, user } = useUser();
+  const { login, user, loading } = useUser();
 
   // Cargar credenciales al iniciar
   useEffect(() => {
@@ -117,9 +118,17 @@ const LoginScreen = () => {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-        <Text style={styles.loginText}>Iniciar sesión</Text>
+      <TouchableOpacity 
+        style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        <Text style={styles.loginText}>
+          {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+        </Text>
       </TouchableOpacity>
+
+      {loading && <LoadingSpinner text="Validando credenciales..." />}
 
       <View style={styles.linksRow}>
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
@@ -180,6 +189,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginVertical: 10,
+  },
+  loginBtnDisabled: {
+    backgroundColor: '#bdc3c7',
+    opacity: 0.6,
   },
   loginText: {
     color: '#fff',
