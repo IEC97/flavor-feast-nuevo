@@ -44,6 +44,8 @@ const HomeScreen = () => {
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false); // Para evitar cargas duplicadas
+  const [isRefreshing, setIsRefreshing] = useState(false); // Para evitar llamadas durante refresh
 
   // Estados para mapas dinámicos
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
@@ -163,6 +165,9 @@ const HomeScreen = () => {
 
   // Función para obtener todas las recetas sin paginación
   const fetchAllRecipes = async () => {
+    const callTime = Date.now();
+    console.log(`🔄 fetchAllRecipes llamado a las ${new Date(callTime).toLocaleTimeString()}`);
+    
     try {
       // Incluir parámetro de ordenamiento
       const sortParam = getSortParameter(sortOrder);
@@ -182,7 +187,7 @@ const HomeScreen = () => {
         }));
         
         setAllRecipes(adaptedData);
-        console.log(`✅ Recetas cargadas: ${adaptedData.length}`);
+        console.log(`✅ Recetas cargadas (fetchAllRecipes): ${adaptedData.length} - ${new Date(callTime).toLocaleTimeString()}`);
         
       } else {
         console.error('Error en backend:', json.message);
@@ -194,7 +199,10 @@ const HomeScreen = () => {
 
   // Actualizar página
   const onRefresh = async () => {
+    console.log(`🔄 onRefresh llamado a las ${new Date().toLocaleTimeString()}`);
     setRefreshing(true);
+    setIsRefreshing(true); // Marcar que estamos en refresh
+    
     try {
       // Cargar mapas de IDs y recetas en paralelo
       await Promise.all([
@@ -203,33 +211,47 @@ const HomeScreen = () => {
         fetchAllRecipes() // Cargar todas las recetas
       ]);
       
+      setInitialLoadComplete(true); // Marcar carga inicial como completa
+      console.log(`✅ onRefresh completado a las ${new Date().toLocaleTimeString()}`);
     } catch (error) {
       console.error('❌ Error al actualizar:', error);
     } finally {
       setRefreshing(false);
+      setIsRefreshing(false); // Finalizar refresh
     }
   };
 
   // Actualizar al entrar a la pantalla
   useFocusEffect(
     React.useCallback(() => {
-      onRefresh();
+      // Solo hacer refresh si no se ha completado la carga inicial
+      if (!initialLoadComplete) {
+        onRefresh();
+      }
       setForceUpdate(prev => prev + 1);
-    }, [])
+    }, [initialLoadComplete])
   );
 
   // Recargar recetas cuando cambie el ordenamiento
   useEffect(() => {
-    // Usar setTimeout para asegurar que las variables de estado estén actualizadas
-    setTimeout(() => {
-      // Solo recargar si no estamos en una búsqueda activa ni con filtros aplicados
-      if (search.trim().length === 0 && (!filters.include?.length && !filters.exclude?.length && !filters.categories?.length)) {
-        fetchAllRecipes();
-      }
-    }, 0);
-  }, [sortOrder]);
+    console.log(`🔄 useEffect sortOrder ejecutado - isRefreshing: ${isRefreshing}, initialLoadComplete: ${initialLoadComplete}`);
+    
+    // Solo recargar si:
+    // 1. La carga inicial está completa
+    // 2. No estamos en proceso de refresh
+    // 3. No hay búsqueda activa
+    // 4. No hay filtros aplicados
+    if (initialLoadComplete && 
+        !isRefreshing &&
+        search.trim().length === 0 && 
+        (!filters.include?.length && !filters.exclude?.length && !filters.categories?.length)) {
+      console.log(`📊 Recargando recetas por cambio de ordenamiento: ${sortOrder}`);
+      fetchAllRecipes();
+    }
+  }, [sortOrder, initialLoadComplete, isRefreshing]);
 
   // Escuchar cambios en el cache de valoraciones para re-render automático
+  // Solo actualizar el contador de fuerza, no recargar datos
   useEffect(() => {
     setForceUpdate(prev => prev + 1);
   }, [ratingCache.updateCounter]);

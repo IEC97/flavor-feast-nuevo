@@ -86,7 +86,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             userId: r.idUsuario, // Guardamos el ID del usuario para comparar después
           }));
 
-          console.log('✅ Recetas cargadas:', mapped.length);
+          // console.log('✅ Recetas cargadas:', mapped.length); // Comentado para evitar duplicados
           setRecipes(mapped);
         } else {
           console.error('Error al cargar recetas:', json.message);

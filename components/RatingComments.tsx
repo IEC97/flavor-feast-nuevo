@@ -70,8 +70,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
 
   const loadCommentsWithRatings = async (commentRatings: any[]) => {
     try {
-      console.log('🔍 Cargando comentarios con puntuaciones...');
-      console.log('📊 Datos de puntuación recibidos:', commentRatings);
+      console.log('🔍 Cargando comentarios con puntuaciones para receta:', recipeId);
       
       const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comentario`);
       
@@ -80,15 +79,8 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
       }
       
       const json = await response.json();
-      console.log('📥 Respuesta del endpoint /comentario:', json);
       
       if (json.status === 200 && json.data) {
-        console.log('📊 Comentarios del endpoint:', json.data.map((c: any) => ({
-          id: c.idComentario,
-          usuario: c.usuario,
-          descripcion: c.descripcion?.substring(0, 50) + '...'
-        })));
-        
         // Mapear comentarios con sus puntuaciones
         const recentComments = json.data
           .reverse().slice(0, 10)
@@ -98,31 +90,14 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
               (rating: any) => rating.idComentario === c.idComentario
             );
             
-            console.log('🔍 Buscando puntuación para comentario:', {
-              comentarioId: c.idComentario,
-              usuario: c.usuario,
-              ratingDataFound: !!ratingData,
-              ratingData: ratingData,
-              availableRatings: commentRatings.map(r => ({ id: r.idComentario, puntuacion: r.puntuacion }))
-            });
-            
-            const commentWithRating = {
+            return {
               id: c.idComentario,
               description: c.descripcion,
               approved: true,
               username: c.usuario || 'Usuario anónimo',
               createdAt: c.fechaCreacion,
-              rating: ratingData ? ratingData.puntuacion : null // null si no hay puntuación
+              rating: ratingData ? ratingData.puntuacion : null
             };
-            
-            console.log('📝 Comentario mapeado:', {
-              id: commentWithRating.id,
-              username: commentWithRating.username,
-              rating: commentWithRating.rating,
-              hasRatingData: !!ratingData
-            });
-            
-            return commentWithRating;
           });
         
         setComments(recentComments);

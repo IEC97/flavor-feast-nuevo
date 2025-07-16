@@ -34,6 +34,7 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isLoadingAll, setIsLoadingAll] = useState(false); // Estado para carga masiva
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false); // Flag para carga inicial
   const pendingNoRatingRecipes = useRef<Set<string>>(new Set());
+  const loggedNoRatingRecipes = useRef<Set<string>>(new Set()); // Para evitar logs duplicados
 
   // Efecto para procesar las recetas pendientes de marcar como sin valoración
   useEffect(() => {
@@ -64,7 +65,12 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     // Si la carga inicial está completa, marcar como sin valoración
     if (isInitialLoadComplete) {
-      console.log(`📝 Marcando receta ${recipeId} como sin valoración (carga inicial completa)`);
+      // Solo log una vez por receta
+      if (!loggedNoRatingRecipes.current.has(recipeId)) {
+        // console.log(`📝 Marcando receta ${recipeId} como sin valoración (carga inicial completa)`);
+        loggedNoRatingRecipes.current.add(recipeId);
+      }
+      
       const noRatingData = { promedio: 0, votos: 0 };
       
       // Agregar a pendientes para procesamiento posterior
@@ -73,8 +79,11 @@ export const RatingCacheProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return noRatingData;
     }
     
-    // Log para debug
-    console.log(`⏳ Receta ${recipeId} sin valoración en cache, carga inicial aún no completa`);
+    // Log para debug - solo una vez por receta
+    // if (!loggedNoRatingRecipes.current.has(recipeId)) {
+    //   console.log(`⏳ Receta ${recipeId} sin valoración en cache, carga inicial aún no completa`);
+    //   loggedNoRatingRecipes.current.add(recipeId);
+    // }
     return undefined;
   }, [cache, isInitialLoadComplete]);
 
