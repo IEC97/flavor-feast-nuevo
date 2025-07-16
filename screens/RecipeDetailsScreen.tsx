@@ -31,17 +31,6 @@ const RecipeDetailsScreen = () => {
   const [userRating, setUserRating] = useState<number>(0);
   const [ratingsWithComments, setRatingsWithComments] = useState<any>(null);
 
-  // Debug: Verificar qué datos llegan inicialmente
-  console.log('🔍 Receta inicial - descripción:', recipe.description);
-  console.log('🔍 Receta inicial - título:', recipe.title);
-  console.log('🔍 Receta inicial - objeto completo:', {
-    id: recipe.id,
-    title: recipe.title,
-    description: recipe.description,
-    hasDescription: !!recipe.description,
-    descriptionLength: recipe.description?.length || 0
-  });
-
   // Optimización: Calcular estado inicial de datos
   const initialDataState = useMemo(() => {
     const hasIngredients = recipe.ingredients && recipe.ingredients.length > 0;
@@ -95,9 +84,11 @@ const RecipeDetailsScreen = () => {
 
   // Cargar ingredientes y pasos al entrar en la pantalla
   useEffect(() => {
+    let isMounted = true;
+    
     const loadRecipeDetails = async () => {
       // Si ya tenemos datos completos, solo cargar valoraciones en background
-      if (initialDataState.isDataComplete) {
+      if (initialDataState.isDataComplete && isMounted) {
         console.log('🚀 Carga ultra-rápida: datos ya completos');
         
         // Cargar puntuaciones con comentarios
@@ -111,7 +102,9 @@ const RecipeDetailsScreen = () => {
       }
 
       // Solo cargar si faltan datos críticos
-      setLoading(true);
+      if (isMounted) {
+        setLoading(true);
+      }
       
       try {
         console.log('🔍 Carga rápida: completando datos faltantes');
@@ -122,23 +115,17 @@ const RecipeDetailsScreen = () => {
           loadRatingsWithComments()
         ]);
         
-        if (completeRecipe) {
+        if (completeRecipe && isMounted) {
           setRecipeWithDetails(completeRecipe);
           console.log('✅ Datos actualizados');
-          console.log('🔍 Descripción de la receta:', completeRecipe.description);
-          console.log('🔍 Receta completa debug:', {
-            id: completeRecipe.id,
-            title: completeRecipe.title,
-            description: completeRecipe.description,
-            hasDescription: !!completeRecipe.description,
-            descriptionLength: completeRecipe.description?.length || 0
-          });
-        } else {
+        } else if (isMounted) {
           setRecipeWithDetails(recipe);
-          console.log('🔍 Descripción de la receta original:', recipe.description);
+          console.log('⚠️ Usando datos originales');
         }
         
-        setDetailsLoaded(true);
+        if (isMounted) {
+          setDetailsLoaded(true);
+        }
         
         // Cargar valoraciones después sin bloquear
         ratingCache.loadAndUpdateRating(recipe.id).catch(error => {
@@ -147,15 +134,23 @@ const RecipeDetailsScreen = () => {
         
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
-        setRecipeWithDetails(recipe);
-        setDetailsLoaded(true);
+        if (isMounted) {
+          setRecipeWithDetails(recipe);
+          setDetailsLoaded(true);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadRecipeDetails();
-  }, [recipe.id, getRecipeDetails, initialDataState.isDataComplete, loadRatingsWithComments]); // Agregar loadRatingsWithComments como dependencia
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [recipe.id, initialDataState.isDataComplete]); // Remover loadRatingsWithComments de dependencias
 
   const adjustQuantity = useCallback((qty: number) => Math.round(qty * portions), [portions]);
 
@@ -291,12 +286,7 @@ const RecipeDetailsScreen = () => {
       </View>
       
       <Text style={styles.description}>
-        {(() => {
-          console.log('🔍 RENDER - Descripción a mostrar:', recipeWithDetails.description);
-          console.log('🔍 RENDER - Tipo de descripción:', typeof recipeWithDetails.description);
-          console.log('🔍 RENDER - Booleano descripción:', !!recipeWithDetails.description);
-          return recipeWithDetails.description || 'No hay descripción disponible';
-        })()}
+        {recipeWithDetails.description || 'No hay descripción disponible'}
       </Text>
 
       <Text style={styles.section}>Ingredientes</Text>

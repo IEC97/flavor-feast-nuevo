@@ -87,14 +87,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             description: r.descripcion || '', // Agregamos la descripción
           }));
 
-          // Debug: Verificar si las descripciones están llegando
-          console.log('🔍 Verificando descripciones en mapeo:', mapped.slice(0, 3).map((r: Recipe) => ({
-            id: r.id,
-            title: r.title,
-            description: r.description,
-            descripcionOriginal: json.data.find((orig: any) => orig.idReceta.toString() === r.id)?.descripcion
-          })));
-
           // console.log('✅ Recetas cargadas:', mapped.length); // Comentado para evitar duplicados
           setRecipes(mapped);
         } else {
@@ -799,17 +791,52 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   const getRecipeDetails = async (recipeId: string): Promise<Recipe | null> => {
     try {
       console.log('🔍 Getting recipe details for ID:', recipeId);
-      const [ingredients, steps] = await Promise.all([
-        getRecipeIngredients(recipeId),
-        getRecipeSteps(recipeId)
-      ]);
-
+      
       // Buscar la receta en el estado local primero
       let baseRecipe = recipes.find(r => r.id === recipeId || r.id.toString() === recipeId);
       
-      // Si no se encuentra, intentar cargarla desde getUserRecipes
+      // Si no se encuentra, intentar cargarla desde la API directamente
+      if (!baseRecipe) {
+        console.log('📋 Receta no encontrada en estado local, cargando desde API...');
+        try {
+          const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`);
+          const json = await response.json();
+          
+          if (json.status === 200 && json.data) {
+            const r = json.data;
+            baseRecipe = {
+              id: r.idReceta.toString(),
+              title: r.nombre,
+              author: r.usuario || 'Desconocido',
+              rating: r.puntuacion || 5,
+              category: r.tipo || 'Sin categoría',
+              image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
+              ingredients: [],
+              steps: [],
+              createdByUser: false,
+              createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),
+              categoryId: r.tipoId,
+              servings: r.porciones,
+              userId: r.idUsuario,
+              description: r.descripcion || '',
+            };
+            
+            console.log('✅ Receta cargada desde API:', baseRecipe.title);
+            
+            // Agregar al estado local para futuras búsquedas
+            setRecipes(prev => {
+              const exists = prev.some(r => r.id === baseRecipe!.id);
+              return exists ? prev : [...prev, baseRecipe!];
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error al cargar desde API:', error);
+        }
+      }
+      
+      // Si aún no tenemos la receta base, intentar desde getUserRecipes como fallback
       if (!baseRecipe && user?.id) {
-        console.log('📋 Receta no encontrada en estado local, cargando desde getUserRecipes...');
+        console.log('📋 Último intento: cargando desde getUserRecipes...');
         try {
           const userRecipes = await getUserRecipes(user.id);
           baseRecipe = userRecipes.find(r => r.id === recipeId || r.id.toString() === recipeId);
@@ -827,6 +854,12 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (baseRecipe) {
+        // Cargar ingredientes y pasos
+        const [ingredients, steps] = await Promise.all([
+          getRecipeIngredients(recipeId),
+          getRecipeSteps(recipeId)
+        ]);
+        
         const completeRecipe = {
           ...baseRecipe,
           ingredients,
@@ -834,6 +867,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         };
         return completeRecipe;
       }
+      
       console.log('❌ Base recipe not found for ID:', recipeId);
       return null;
     } catch (error) {
