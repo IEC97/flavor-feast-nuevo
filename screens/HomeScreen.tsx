@@ -46,6 +46,7 @@ const HomeScreen = () => {
   const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
   const [initialLoadComplete, setInitialLoadComplete] = useState(false); // Para evitar cargas duplicadas
   const [isRefreshing, setIsRefreshing] = useState(false); // Para evitar llamadas durante refresh
+  const [lastRefreshTime, setLastRefreshTime] = useState(0); // Para evitar recargas inmediatas después de refresh
 
   // Estados para mapas dinámicos
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
@@ -212,6 +213,7 @@ const HomeScreen = () => {
       ]);
       
       setInitialLoadComplete(true); // Marcar carga inicial como completa
+      setLastRefreshTime(Date.now()); // Marcar tiempo del último refresh
       console.log(`✅ onRefresh completado a las ${new Date().toLocaleTimeString()}`);
     } catch (error) {
       console.error('❌ Error al actualizar:', error);
@@ -224,31 +226,34 @@ const HomeScreen = () => {
   // Actualizar al entrar a la pantalla
   useFocusEffect(
     React.useCallback(() => {
-      // Solo hacer refresh si no se ha completado la carga inicial
-      if (!initialLoadComplete) {
-        onRefresh();
-      }
+      // Siempre hacer refresh al entrar a la pantalla
+      onRefresh();
       setForceUpdate(prev => prev + 1);
-    }, [initialLoadComplete])
+    }, []) // Remover la dependencia de initialLoadComplete
   );
 
   // Recargar recetas cuando cambie el ordenamiento
   useEffect(() => {
-    console.log(`🔄 useEffect sortOrder ejecutado - isRefreshing: ${isRefreshing}, initialLoadComplete: ${initialLoadComplete}`);
+    const timeSinceRefresh = Date.now() - lastRefreshTime;
+    console.log(`🔄 useEffect sortOrder ejecutado - isRefreshing: ${isRefreshing}, initialLoadComplete: ${initialLoadComplete}, timeSinceRefresh: ${timeSinceRefresh}ms`);
     
     // Solo recargar si:
     // 1. La carga inicial está completa
     // 2. No estamos en proceso de refresh
-    // 3. No hay búsqueda activa
-    // 4. No hay filtros aplicados
+    // 3. Ha pasado al menos 1 segundo desde el último refresh
+    // 4. No hay búsqueda activa
+    // 5. No hay filtros aplicados
     if (initialLoadComplete && 
         !isRefreshing &&
+        timeSinceRefresh > 1000 && // Esperar 1 segundo después del refresh
         search.trim().length === 0 && 
         (!filters.include?.length && !filters.exclude?.length && !filters.categories?.length)) {
       console.log(`📊 Recargando recetas por cambio de ordenamiento: ${sortOrder}`);
       fetchAllRecipes();
+    } else if (timeSinceRefresh <= 1000) {
+      console.log(`⏸️ Evitando recarga inmediata después de refresh (${timeSinceRefresh}ms)`);
     }
-  }, [sortOrder, initialLoadComplete, isRefreshing]);
+  }, [sortOrder, initialLoadComplete, isRefreshing, lastRefreshTime]);
 
   // Escuchar cambios en el cache de valoraciones para re-render automático
   // Solo actualizar el contador de fuerza, no recargar datos

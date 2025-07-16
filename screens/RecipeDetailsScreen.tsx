@@ -270,22 +270,6 @@ const RecipeDetailsScreen = () => {
         )}
       </View>
       
-      {/* Mostrar valoración del usuario si existe */}
-      {user && !isOwnRecipe && userRating > 0 && (
-        <View style={styles.userRatingContainer}>
-          <Text style={styles.userRatingLabel}>Tu valoración:</Text>
-          <StarRating rating={userRating} size={18} />
-          <Text style={styles.userRatingText}>({userRating}/5)</Text>
-        </View>
-      )}
-      
-      {/* Mostrar mensaje si es receta propia */}
-      {isOwnRecipe && (
-        <View style={styles.ownRecipeContainer}>
-          <Text style={styles.ownRecipeText}>Esta es tu receta - No puedes valorarla</Text>
-        </View>
-      )}
-      
       <Text style={styles.description}>{recipeWithDetails.description}</Text>
 
       <Text style={styles.section}>Ingredientes</Text>
