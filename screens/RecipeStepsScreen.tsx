@@ -104,16 +104,8 @@ const RecipeStepsScreen = () => {
     setShowSuccessModal(false);
     setModalType(null);
     
-    if (modalType === 'EDIT_SUCCESS') {
-      // Si estamos editando, volver a los detalles de la receta
-      navigation.navigate('RecipeDetails', { 
-        recipe: { ...recipe, steps: steps },
-        fromEdit: true 
-      });
-    } else {
-      // Si es una nueva receta, ir a "Mis Recetas"
-      navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
-    }
+    // Siempre navegar a "Mis Recetas" después de guardar, tanto para crear como para editar
+    navigation.navigate('HomeTabs', { screen: 'Mis Recetas' });
   };
 
   const handleCloseErrorModal = () => {
@@ -164,7 +156,7 @@ const RecipeStepsScreen = () => {
         return {
           title: '¡Receta actualizada con éxito!',
           message: 'Los cambios en tu receta han sido guardados correctamente.',
-          buttonText: 'Ver receta actualizada'
+          buttonText: 'Ir a Mis Recetas'
         };
       default:
         return {

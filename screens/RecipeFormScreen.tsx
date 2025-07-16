@@ -350,7 +350,7 @@ const RecipeFormScreen = () => {
           style: 'destructive',
           onPress: () => {
             deleteRecipe(editingRecipe.id);
-            navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
+            navigation.navigate('HomeTabs', { screen: 'Mis Recetas' });
           },
         },
       ]);
