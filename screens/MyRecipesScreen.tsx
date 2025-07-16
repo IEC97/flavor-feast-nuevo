@@ -33,6 +33,7 @@ const MyRecipesScreen = () => {
   const [promptType, setPromptType] = useState<'create' | 'delete' | null>(null);
   const [recipeToDelete, setRecipeToDelete] = useState<string | null>(null);
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
+  const [deleting, setDeleting] = useState(false);
 
   // Cargar las recetas del usuario desde la base de datos
   const loadUserRecipes = async () => {
@@ -129,6 +130,7 @@ const MyRecipesScreen = () => {
       setPromptType(null);
       navigation.navigate('RecipeForm', {});
     } else if (promptType === 'delete' && recipeToDelete) {
+      setDeleting(true);
       try {
         console.log('🗑️ Intentando eliminar receta:', recipeToDelete);
         // Eliminar de la base de datos
@@ -145,6 +147,8 @@ const MyRecipesScreen = () => {
       } catch (error) {
         console.error('❌ Error al eliminar receta:', error);
         Alert.alert('Error', 'Ocurrió un error al eliminar la receta');
+      } finally {
+        setDeleting(false);
       }
       setShowPrompt(false);
       setPromptType(null);
@@ -158,9 +162,11 @@ const MyRecipesScreen = () => {
   }; */
 
   const handleNo = () => {
-    setShowPrompt(false);
-    setPromptType(null);
-    setRecipeToDelete(null);
+    if (!deleting) {
+      setShowPrompt(false);
+      setPromptType(null);
+      setRecipeToDelete(null);
+    }
   };
 
   /* const handleNo = () => {
@@ -270,16 +276,40 @@ const MyRecipesScreen = () => {
               </>
             ) : (
               <>
-                <MaterialIcons name="delete-outline" size={32} color="#c00" style={{ alignSelf: 'center' }} />
-                <Text style={styles.promptText}>¿Deseas eliminar la Receta?</Text>
+                <MaterialIcons 
+                  name="delete-outline" 
+                  size={32} 
+                  color={deleting ? "#999" : "#c00"} 
+                  style={{ alignSelf: 'center' }} 
+                />
+                <Text style={styles.promptText}>
+                  {deleting ? 'Eliminando receta...' : '¿Deseas eliminar la Receta?'}
+                </Text>
+                {deleting && (
+                  <View style={styles.modalLoadingContainer}>
+                    <LoadingSpinner size="small" color="#c00" />
+                  </View>
+                )}
               </>
             )}
             <View style={styles.promptButtons}>
-              <TouchableOpacity style={styles.promptYes} onPress={handleYes}>
-                <Text style={styles.promptYesText}>Sí</Text>
+              <TouchableOpacity 
+                style={[styles.promptYes, deleting && styles.promptButtonDisabled]} 
+                onPress={handleYes}
+                disabled={deleting}
+              >
+                <Text style={[styles.promptYesText, deleting && styles.promptButtonTextDisabled]}>
+                  Sí
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.promptNo} onPress={handleNo}>
-                <Text style={styles.promptNoText}>No</Text>
+              <TouchableOpacity 
+                style={[styles.promptNo, deleting && styles.promptButtonDisabled]} 
+                onPress={handleNo}
+                disabled={deleting}
+              >
+                <Text style={[styles.promptNoText, deleting && styles.promptButtonTextDisabled]}>
+                  No
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -443,6 +473,17 @@ const styles = StyleSheet.create({
     color: '#13162e',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  promptButtonDisabled: {
+    opacity: 0.6,
+  },
+  promptButtonTextDisabled: {
+    opacity: 0.6,
+  },
+  modalLoadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
   },
 });
 

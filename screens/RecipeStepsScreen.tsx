@@ -30,6 +30,8 @@ const RecipeStepsScreen = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [modalType, setModalType] = useState<'CREATE_SUCCESS' | 'EDIT_SUCCESS' | 'ERROR' | null>(null);
+  const [errorType, setErrorType] = useState<string>('');
   //const [steps, setSteps] = useState<{ text: string; image: any }[]>(recipe?.steps?.length > 0 ? recipe.steps : []);
 
   const addStep = () => {
@@ -77,20 +79,21 @@ const RecipeStepsScreen = () => {
 
       // Si la receta tiene un ID (y es creada por el usuario), estamos editando una receta existente
       if (recipe.id && recipe.id.trim() !== '' && recipe.createdByUser) {
-
         await editRecipe(recipe.id, completeRecipe);
         setIsEditing(true);
+        setModalType('EDIT_SUCCESS');
         setShowSuccessModal(true);
       } else {
         // Si no tiene ID o no es creada por el usuario, es una nueva receta
         await addRecipe(completeRecipe);
-        
-        // Mostrar modal de éxito
+        setModalType('CREATE_SUCCESS');
         setShowSuccessModal(true);
-
-        //navigation.navigate('RecipeDetails', { recipe: completeRecipe });
       }
     } catch (error) {
+      console.error('Error capturado en handleSave:', error);
+      const errorMessage = error instanceof Error ? error.message : 'ERROR_GENERAL';
+      setErrorType(errorMessage);
+      setModalType('ERROR');
       setShowErrorModal(true);
     } finally {
       setSaving(false);
@@ -99,7 +102,9 @@ const RecipeStepsScreen = () => {
   
   const handleGoToMyRecipes = () => {
     setShowSuccessModal(false);
-    if (isEditing) {
+    setModalType(null);
+    
+    if (modalType === 'EDIT_SUCCESS') {
       // Si estamos editando, volver a los detalles de la receta
       navigation.navigate('RecipeDetails', { 
         recipe: { ...recipe, steps: steps },
@@ -113,6 +118,61 @@ const RecipeStepsScreen = () => {
 
   const handleCloseErrorModal = () => {
     setShowErrorModal(false);
+    setModalType(null);
+    setErrorType('');
+  };
+
+  const getErrorMessage = () => {
+    switch (errorType) {
+      case 'IMAGEN_INVALIDA':
+        return {
+          title: '¡Error en la imagen!',
+          message: 'La URL de la imagen no es válida. Por favor, verifica que sea una URL correcta de una imagen.'
+        };
+      case 'INGREDIENTE_INVALIDO':
+        return {
+          title: '¡Error en los ingredientes!',
+          message: 'Hay un problema con los ingredientes seleccionados. Verifica que sean válidos.'
+        };
+      case 'PASO_INVALIDO':
+        return {
+          title: '¡Error en los pasos!',
+          message: 'Hay un problema con los pasos de la receta. Verifica que estén completos.'
+        };
+      case 'ERROR_VALIDACION':
+        return {
+          title: '¡Error de validación!',
+          message: 'Los datos ingresados no son válidos. Por favor, revisa todos los campos.'
+        };
+      default:
+        return {
+          title: '¡Error al guardar la receta!',
+          message: 'No se pudo guardar la receta. Por favor, verifica tu conexión a internet e inténtalo de nuevo.'
+        };
+    }
+  };
+
+  const getSuccessMessage = () => {
+    switch (modalType) {
+      case 'CREATE_SUCCESS':
+        return {
+          title: '¡Receta creada con éxito!',
+          message: 'Tu receta ha sido creada correctamente y ya está disponible en tu lista personal.',
+          buttonText: 'Ir a Mis Recetas'
+        };
+      case 'EDIT_SUCCESS':
+        return {
+          title: '¡Receta actualizada con éxito!',
+          message: 'Los cambios en tu receta han sido guardados correctamente.',
+          buttonText: 'Ver receta actualizada'
+        };
+      default:
+        return {
+          title: '¡Operación exitosa!',
+          message: 'La operación se completó correctamente.',
+          buttonText: 'Continuar'
+        };
+    }
   };
   
 
@@ -206,13 +266,10 @@ const RecipeStepsScreen = () => {
           </View>
           
           <Text style={styles.successTitle}>
-            {isEditing ? '¡Receta actualizada con éxito!' : '¡Receta creada con éxito!'}
+            {getSuccessMessage().title}
           </Text>
           <Text style={styles.successMessage}>
-            {isEditing 
-              ? 'Los cambios en tu receta han sido guardados correctamente.' 
-              : 'Tu receta ha sido guardada correctamente y ya está disponible en tu lista personal.'
-            }
+            {getSuccessMessage().message}
           </Text>
           
           <TouchableOpacity 
@@ -220,7 +277,7 @@ const RecipeStepsScreen = () => {
             onPress={handleGoToMyRecipes}
           >
             <Text style={styles.successButtonText}>
-              {isEditing ? 'Ver receta actualizada' : 'Volver al Inicio'}
+              {getSuccessMessage().buttonText}
             </Text>
           </TouchableOpacity>
         </View>
@@ -241,10 +298,10 @@ const RecipeStepsScreen = () => {
           </View>
           
           <Text style={styles.errorTitle}>
-            ¡Error al guardar la receta!
+            {getErrorMessage().title}
           </Text>
           <Text style={styles.errorMessage}>
-            No se pudo guardar la receta. Por favor, verifica tu conexión a internet e inténtalo de nuevo.
+            {getErrorMessage().message}
           </Text>
           
           <TouchableOpacity 
