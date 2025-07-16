@@ -13,8 +13,8 @@ type RecipeContextType = {
   recipes: Recipe[];
   myRecipes: Recipe[];
   favorites: Recipe[];
-  addRecipe: (recipe: Recipe) => void;
-  editRecipe: (id: string, updatedRecipe: Partial<Recipe>) => void;
+  addRecipe: (recipe: Recipe) => Promise<void>;
+  editRecipe: (id: string, updatedRecipe: Partial<Recipe>) => Promise<void>;
   deleteRecipe: (id: string) => Promise<boolean>;
   toggleFavorite: (recipe: Recipe) => void;
   isFavorite: (id: string) => boolean;
@@ -84,9 +84,10 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             categoryId: r.tipoId,
             servings: r.porciones,
             userId: r.idUsuario, // Guardamos el ID del usuario para comparar después
+            description: r.descripcion || '', // Agregamos la descripción
           }));
 
-          console.log('✅ Recetas cargadas:', mapped.length);
+          // console.log('✅ Recetas cargadas:', mapped.length); // Comentado para evitar duplicados
           setRecipes(mapped);
         } else {
           console.error('Error al cargar recetas:', json.message);
@@ -157,14 +158,12 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addRecipe = async (recipe: Recipe) => {
     if (!user?.id) {
-      console.error('No hay usuario autenticado');
-      return;
+      throw new Error('No hay usuario autenticado');
     }
 
     // Validar que categoryId sea válido
     if (!recipe.categoryId || isNaN(recipe.categoryId)) {
-      console.error('Error: categoryId es requerido y debe ser un número válido');
-      return;
+      throw new Error('categoryId es requerido y debe ser un número válido');
     }
 
     // Transforma el objeto al formato esperado por el backend
@@ -203,7 +202,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (!response.ok) {
         console.error('❌ Error en la respuesta del backend:', response.status, response.statusText);
-        return;
+        throw new Error(`Error del servidor: ${response.status}`);
       }
       
       const json = await response.json();
@@ -211,9 +210,9 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
       const statusCode = Number(json.status);
 
-      // 2. Si la creación fue exitosa, agrega la receta al estado local
-      if (statusCode >= 200 && statusCode < 300 && json.data) {
-        // Muestra el mensaje del backend al usuario (creado o actualizado)
+      // Casos específicos basados en la respuesta del backend
+      if (statusCode === 201 && json.data && json.message === "Receta creada correctamente") {
+        // CASO 1: CREACIÓN EXITOSA
         console.log('✅ Receta guardada:', json.message);
         
         // Asegurar que tenemos el ID correcto del backend
@@ -221,7 +220,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         if (!backendId) {
           console.error('❌ Error: El backend no devolvió un ID válido para la receta');
           console.error('📋 Datos recibidos:', json.data);
-          return;
+          throw new Error('El backend no devolvió un ID válido para la receta');
         }
         
         console.log('📋 ID asignado por el backend:', backendId);
@@ -241,14 +240,69 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         ]);
         
         console.log('✅ Receta agregada al estado local con ID del backend:', backendId);
-      } else {
-        console.error('❌ Error al crear receta - Status:', statusCode);
+      } else if (statusCode === 200 && json.data && json.message === "Receta actualizada correctamente") {
+        // CASO 2: EDICIÓN EXITOSA (cuando se actualiza una receta existente)
+        console.log('✅ Receta actualizada:', json.message);
+        
+        const backendId = json.data.idReceta || json.data.id;
+        if (!backendId) {
+          throw new Error('El backend no devolvió un ID válido para la actualización');
+        }
+        
+        console.log('📋 ID asignado por el backend:', backendId);
+        
+        // Actualizar la receta en el estado local
+        setRecipes((prev) => {
+          const updated = prev.map(r => 
+            r.id === backendId.toString() || r.id === recipe.id 
+              ? { ...r, ...recipe, id: backendId.toString() }
+              : r
+          );
+          
+          // Si no se encontró la receta para actualizar, agregarla
+          const exists = updated.some(r => r.id === backendId.toString());
+          if (!exists) {
+            const newRecipe = {
+              ...recipe,
+              id: backendId.toString(),
+              createdByUser: true,
+              userId: parseInt(user.id, 10),
+              createdAt: Date.now()
+            };
+            updated.push(newRecipe);
+          }
+          
+          return updated;
+        });
+        
+        console.log('✅ Receta actualizada en el estado local con ID del backend:', backendId);
+      } else if (statusCode >= 400 && statusCode < 500) {
+        // CASO 3: ERROR EN CREACIÓN/EDICIÓN
+        console.error('❌ Error al crear/editar receta - Status:', statusCode);
         console.error('❌ Mensaje del backend:', json.message);
         console.error('❌ Datos devueltos:', json.data);
+        
+        // Lanzar error específico basado en el mensaje del backend
+        if (json.message.includes('URL de imagen inválida')) {
+          throw new Error('IMAGEN_INVALIDA');
+        } else if (json.message.includes('ingrediente')) {
+          throw new Error('INGREDIENTE_INVALIDO');
+        } else if (json.message.includes('paso')) {
+          throw new Error('PASO_INVALIDO');
+        } else {
+          throw new Error('ERROR_VALIDACION');
+        }
+      } else {
+        // CASO GENERAL: Otros errores no especificados
+        console.error('❌ Error inesperado - Status:', statusCode);
+        console.error('❌ Mensaje del backend:', json.message);
+        throw new Error('ERROR_GENERAL');
       }
 
     } catch (error) {
       console.error('Error al conectar con el backend:', error);
+      // Re-lanzar la excepción para que sea capturada por handleSave
+      throw error;
     }
   };
 
@@ -396,7 +450,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             console.error('❌ Respuesta no exitosa:', res.status, res.statusText);
             const errorText = await res.text();
             console.error('❌ Texto de error:', errorText);
-            return;
+            throw new Error(`Error del servidor: ${res.status}`);
           }
           
           const contentType = res.headers.get('content-type');
@@ -412,7 +466,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
               json = JSON.parse(responseText);
             } catch (parseError) {
               console.error('❌ No se pudo parsear como JSON:', parseError);
-              return;
+              throw new Error('Error al procesar respuesta del servidor');
             }
           }
           
@@ -433,16 +487,31 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
             }
           } else {
             console.error('❌ Error en la actualización:', json.message);
+            // Lanzar error específico basado en el mensaje del backend
+            if (json.message.includes('URL de imagen inválida')) {
+              throw new Error('IMAGEN_INVALIDA');
+            } else if (json.message.includes('ingrediente')) {
+              throw new Error('INGREDIENTE_INVALIDO');
+            } else if (json.message.includes('paso')) {
+              throw new Error('PASO_INVALIDO');
+            } else {
+              throw new Error('ERROR_VALIDACION');
+            }
           }
           
         } catch (error) {
           console.error('❌ Error actualizando receta en backend:', error);
+          // Re-lanzar el error para que sea capturado por handleSave
+          throw error;
         }
       } else {
         console.log('⚠️ No se puede editar: receta no creada por usuario o usuario no autenticado');
+        throw new Error('No se puede editar: receta no creada por usuario');
       }
     } catch (error) {
       console.error('❌ Error general en editRecipe:', error);
+      // Re-lanzar el error para que sea capturado por handleSave
+      throw error;
     }
   };
 
@@ -538,6 +607,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           categoryId: r.tipo,
           servings: 1,
           userId: 0,
+          description: r.descripcion || '', // Agregamos la descripción
         }));
         
         console.log('✅ Favoritos cargados:', mapped.length);
@@ -721,17 +791,52 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
   const getRecipeDetails = async (recipeId: string): Promise<Recipe | null> => {
     try {
       console.log('🔍 Getting recipe details for ID:', recipeId);
-      const [ingredients, steps] = await Promise.all([
-        getRecipeIngredients(recipeId),
-        getRecipeSteps(recipeId)
-      ]);
-
+      
       // Buscar la receta en el estado local primero
       let baseRecipe = recipes.find(r => r.id === recipeId || r.id.toString() === recipeId);
       
-      // Si no se encuentra, intentar cargarla desde getUserRecipes
+      // Si no se encuentra, intentar cargarla desde la API directamente
+      if (!baseRecipe) {
+        console.log('📋 Receta no encontrada en estado local, cargando desde API...');
+        try {
+          const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`);
+          const json = await response.json();
+          
+          if (json.status === 200 && json.data) {
+            const r = json.data;
+            baseRecipe = {
+              id: r.idReceta.toString(),
+              title: r.nombre,
+              author: r.usuario || 'Desconocido',
+              rating: r.puntuacion || 5,
+              category: r.tipo || 'Sin categoría',
+              image: r.imagen ? { uri: r.imagen } : require('../assets/placeholder.jpg'),
+              ingredients: [],
+              steps: [],
+              createdByUser: false,
+              createdAt: r.fechaCreacion ? new Date(r.fechaCreacion).getTime() : Date.now(),
+              categoryId: r.tipoId,
+              servings: r.porciones,
+              userId: r.idUsuario,
+              description: r.descripcion || '',
+            };
+            
+            console.log('✅ Receta cargada desde API:', baseRecipe.title);
+            
+            // Agregar al estado local para futuras búsquedas
+            setRecipes(prev => {
+              const exists = prev.some(r => r.id === baseRecipe!.id);
+              return exists ? prev : [...prev, baseRecipe!];
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error al cargar desde API:', error);
+        }
+      }
+      
+      // Si aún no tenemos la receta base, intentar desde getUserRecipes como fallback
       if (!baseRecipe && user?.id) {
-        console.log('📋 Receta no encontrada en estado local, cargando desde getUserRecipes...');
+        console.log('📋 Último intento: cargando desde getUserRecipes...');
         try {
           const userRecipes = await getUserRecipes(user.id);
           baseRecipe = userRecipes.find(r => r.id === recipeId || r.id.toString() === recipeId);
@@ -749,6 +854,12 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (baseRecipe) {
+        // Cargar ingredientes y pasos
+        const [ingredients, steps] = await Promise.all([
+          getRecipeIngredients(recipeId),
+          getRecipeSteps(recipeId)
+        ]);
+        
         const completeRecipe = {
           ...baseRecipe,
           ingredients,
@@ -756,6 +867,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         };
         return completeRecipe;
       }
+      
       console.log('❌ Base recipe not found for ID:', recipeId);
       return null;
     } catch (error) {

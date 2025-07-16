@@ -19,6 +19,7 @@ import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe, RootStackParamList, AvailableIngredient } from '../types';
 import { useUserContext } from '../context/UserContext';
 import { Picker } from '@react-native-picker/picker';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { API_BASE_URL } from '../constants';
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
@@ -77,7 +78,6 @@ const RecipeFormScreen = () => {
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     // Espera un ciclo de render para que el contexto se actualice
@@ -238,10 +238,10 @@ const RecipeFormScreen = () => {
   if (checkingUser || loadingRecipeDetails) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#23294c" />
-        <Text style={{ marginTop: 10, color: '#666' }}>
-          {checkingUser ? 'Verificando usuario...' : 'Cargando datos de la receta...'}
-        </Text>
+        <LoadingSpinner 
+          size="large" 
+          text={checkingUser ? 'Verificando usuario...' : 'Cargando datos de la receta...'}
+        />
       </View>
     );
   }
@@ -288,35 +288,32 @@ const RecipeFormScreen = () => {
     }
   }; */
 
-  const handleSubmit = () => {
-    if (!editingRecipe) {
-      // Validaciones solo al crear nueva receta
-      if (!title || !description || !servings || !categoryId) {
-        Alert.alert('Error', 'Por favor completa todos los campos requeridos.');
-        return;
-      }
-
-      // Validar que la URL de imagen sea obligatoria
-      if (!imageUrl || imageUrl.trim() === '') {
-        Alert.alert('Error', 'Debe ingresar una URL de imagen válida.');
-        return;
-      }
-
-      // Validar que categoryId sea un número válido
-      const parsedCategoryId = parseInt(categoryId, 10);
-      if (isNaN(parsedCategoryId)) {
-        Alert.alert('Error', 'Debe seleccionar una categoría válida.');
-        return;
-      }
-
-      if (ingredients.length === 0 || ingredients.some(i => !i.ingredientId || !i.quantity)) {
-        Alert.alert('Error', 'Debe ingresar al menos un ingrediente con cantidad.');
-        return;
-      }
+  const handleSubmit = async () => {
+    // Validaciones para crear nueva receta
+    if (!title || !description || !servings || !categoryId) {
+      Alert.alert('Error', 'Por favor completa todos los campos requeridos.');
+      return;
     }
 
+    // Validar que la URL de imagen sea obligatoria
+    if (!imageUrl || imageUrl.trim() === '') {
+      Alert.alert('Error', 'Debe ingresar una URL de imagen válida.');
+      return;
+    }
 
+    // Validar que categoryId sea un número válido
+    const parsedCategoryId = parseInt(categoryId, 10);
+    if (isNaN(parsedCategoryId)) {
+      Alert.alert('Error', 'Debe seleccionar una categoría válida.');
+      return;
+    }
 
+    if (ingredients.length === 0 || ingredients.some(i => !i.ingredientId || !i.quantity)) {
+      Alert.alert('Error', 'Debe ingresar al menos un ingrediente con cantidad.');
+      return;
+    }
+
+    // Solo permitir navegar a pasos, no guardar directamente
     const recipeData: Recipe = {
       id: editingRecipe?.id || '', // No generar ID temporal para nuevas recetas
       title,
@@ -326,49 +323,16 @@ const RecipeFormScreen = () => {
       category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
       image: getImageSource(), // Usar la función para obtener la imagen correcta
       ingredients: convertIngredientsToRecipeFormat(ingredients, availableIngredients),
-      steps,
+      steps: steps.length > 0 ? steps : (editingRecipe?.steps || []),
       createdByUser: true,
       servings: parseInt(servings, 10) || 1,
       categoryId: parseInt(categoryId, 10),
-      // Establecer fecha actual tanto para nuevas recetas como para ediciones
-      createdAt: Date.now(),
+      // Establecer fecha actual
+      createdAt: editingRecipe?.createdAt || Date.now(),
     };
 
-    if (editingRecipe) {
-      console.log('🔄 Llamando editRecipe con ID:', editingRecipe.id);
-      console.log('📦 Recipe data completo:', {
-        title: recipeData.title,
-        description: recipeData.description,
-        ingredientsCount: recipeData.ingredients?.length || 0,
-        stepsCount: recipeData.steps?.length || 0,
-        servings: recipeData.servings,
-        categoryId: recipeData.categoryId,
-        createdAt: recipeData.createdAt // Nueva fecha de edición
-      });
-      console.log('🥕 Ingredientes a enviar:', recipeData.ingredients.length, 'ingredientes');
-      console.log('📝 Pasos a enviar:', recipeData.steps.length, 'pasos');
-      console.log('🕒 Fecha actualizada a:', new Date(recipeData.createdAt || Date.now()).toLocaleString());
-      console.log('🎛️ Estado actual del formulario:', {
-        ingredients: ingredients.length,
-        steps: steps.length,
-        title,
-        description,
-        servings,
-        categoryId
-      });
-      
-      editRecipe(editingRecipe.id, recipeData);
-      // Mostrar modal de éxito en lugar de navegar directamente
-      setShowSuccessModal(true);
-    } else {
-      //addRecipe(recipeData);
-      navigation.navigate('RecipeSteps', { recipe: recipeData });
-    }
-  };
-
-  const handleModalNavigation = () => {
-    setShowSuccessModal(false);
-    navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
+    // Siempre navegar a los pasos, tanto para crear como para editar
+    navigation.navigate('RecipeSteps', { recipe: recipeData });
   };
 
   const handleServingsChange = (text: string) => {
@@ -386,33 +350,11 @@ const RecipeFormScreen = () => {
           style: 'destructive',
           onPress: () => {
             deleteRecipe(editingRecipe.id);
-            navigation.navigate('HomeTabs', { screen: 'MyRecipesScreen' });
+            navigation.navigate('HomeTabs', { screen: 'Mis Recetas' });
           },
         },
       ]);
     }
-  };
-
-  const goToStepEditor = () => {
-    navigation.navigate('RecipeSteps', {
-      recipe: {
-        id: editingRecipe?.id || '', // No generar ID temporal para nuevas recetas
-        title,
-        author: user?.username || user?.email || 'Usuario', // Usar datos del usuario autenticado
-        description,
-        rating: editingRecipe?.rating || 0,
-        category: categories.find(cat => cat.id === parseInt(categoryId, 10))?.name || 'Sin categoría',
-        //image: editingRecipe?.image || require('../assets/placeholder.jpg'),
-        image: getImageSource(), // Usar la función para obtener la imagen correcta
-        ingredients: convertIngredientsToRecipeFormat(ingredients, availableIngredients),
-        steps: steps.length > 0 ? steps : (editingRecipe?.steps || []),
-        createdByUser: true,
-        servings: parseInt(servings, 10),
-        categoryId: parseInt(categoryId, 10),
-        // Establecer fecha actual cuando se navega al editor de pasos
-        createdAt: Date.now(),
-      },
-    });
   };
 
   const updateIngredient = (index: number, field: 'ingredientId' | 'quantity' | 'unit', value: string) => {
@@ -626,9 +568,12 @@ const RecipeFormScreen = () => {
         <Text style={{ color: '#007BFF', marginBottom: 10 }}>+ Agregar ingrediente</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+      <TouchableOpacity 
+        style={styles.submitButton} 
+        onPress={handleSubmit}
+      >
         <Text style={styles.submitButtonText}>
-          {editingRecipe ? 'Guardar cambios' : 'Siguiente: Agregar Pasos'}
+          {editingRecipe ? 'Siguiente: Editar Pasos' : 'Siguiente: Agregar Pasos'}
         </Text>
       </TouchableOpacity>
       
@@ -640,44 +585,10 @@ const RecipeFormScreen = () => {
 
       {editingRecipe && (
         <>
-          <TouchableOpacity style={styles.secondaryButton} onPress={goToStepEditor}>
-            <Text style={styles.secondaryText}>Editar pasos</Text>
-          </TouchableOpacity>
-
-          {/* <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.cancelText}>Cancelar</Text>
-          </TouchableOpacity> */}
+          {/* Botón de editar pasos removido ya que el botón principal siempre va a los pasos */}
         </>
       )}
       </ScrollView>
-
-      {/* Modal de éxito para edición */}
-      <Modal
-        visible={showSuccessModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowSuccessModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.successIconContainer}>
-              <Text style={styles.successIcon}>✅</Text>
-            </View>
-            
-            <Text style={styles.successTitle}>¡Receta actualizada con éxito!</Text>
-            <Text style={styles.successMessage}>
-              Los cambios en tu receta han sido guardados correctamente.
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.successButton} 
-              onPress={handleModalNavigation}
-            >
-              <Text style={styles.successButtonText}>Volver al Inicio</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
     </View>
   );
@@ -765,18 +676,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  secondaryButton: {
-    marginTop: 10,
-    backgroundColor: '#23244c',
-    padding: 12,
-    borderRadius: 29,
-    alignItems: 'center',
-  },
-  secondaryText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 15
-  },
   cancelButton: {
     marginTop: 10,
     backgroundColor: '#6c757d',
@@ -798,63 +697,6 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: 'white',
-    fontWeight: 'bold',
-  },
-  // Estilos para el modal de éxito
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 30,
-    width: '90%',
-    maxWidth: 350,
-    alignItems: 'center',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-  },
-  successIconContainer: {
-    marginBottom: 20,
-  },
-  successIcon: {
-    fontSize: 60,
-  },
-  successTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#23294c',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  successMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 25,
-    lineHeight: 22,
-  },
-  successButton: {
-    backgroundColor: '#23294c',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 30,
-    width: '100%',
-    alignItems: 'center',
-  },
-  successButtonText: {
-    color: 'white',
-    fontSize: 16,
     fontWeight: 'bold',
   },
 });

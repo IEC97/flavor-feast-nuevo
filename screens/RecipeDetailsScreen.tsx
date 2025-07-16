@@ -1,20 +1,24 @@
 // screens/RecipeDetailsScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
+import { useUserContext } from '../context/UserContext';
 import RatingComments from '../components/RatingComments';
 import StarRating from '../components/StarRating';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext';
+import { API_BASE_URL } from '../constants';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
   const { toggleFavorite, isFavorite, getRecipeDetails, getRecipeAverageRating } = useRecipeContext();
+  const { user } = useUserContext();
   const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
 
   const { fromEdit } = route.params || {};
@@ -22,61 +26,239 @@ const RecipeDetailsScreen = () => {
   const [portions, setPortions] = useState(1);
   const [recipeWithDetails, setRecipeWithDetails] = useState<Recipe>(recipe);
   const [loading, setLoading] = useState(false);
+  const [detailsLoaded, setDetailsLoaded] = useState(false);
+  const [ratingsLoaded, setRatingsLoaded] = useState(false);
+  const [userRating, setUserRating] = useState<number>(0);
+  const [ratingsWithComments, setRatingsWithComments] = useState<any>(null);
+
+  // Optimización: Calcular estado inicial de datos
+  const initialDataState = useMemo(() => {
+    const hasIngredients = recipe.ingredients && recipe.ingredients.length > 0;
+    const hasSteps = recipe.steps && recipe.steps.length > 0;
+    return {
+      hasIngredients,
+      hasSteps,
+      isDataComplete: hasIngredients && hasSteps
+    };
+  }, [recipe.ingredients, recipe.steps]);
+
+  // Optimización: Marcar como cargado inmediatamente si ya tenemos datos
+  useEffect(() => {
+    if (initialDataState.isDataComplete) {
+      setDetailsLoaded(true);
+      setRatingsLoaded(true); // Inicialmente true para mostrar contenido
+    }
+  }, [initialDataState.isDataComplete]);
+
+  // Función para cargar datos de puntuación con comentarios
+  const loadRatingsWithComments = useCallback(async () => {
+    try {
+      console.log('🔍 Cargando puntuaciones con comentarios...');
+      const response = await fetch(`${API_BASE_URL}/recipes/${recipe.id}/puntuacion&incluirComentarios=1`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const json = await response.json();
+      
+      if (json.status === 200 && json.data) {
+        setRatingsWithComments(json.data);
+        
+        // Buscar la valoración del usuario actual
+        if (user?.id && json.data.comentarios) {
+          const userRatingData = json.data.comentarios.find(
+            (comentario: any) => Number(comentario.idUsuario) === Number(user.id)
+          );
+          if (userRatingData) {
+            setUserRating(userRatingData.puntuacion);
+          }
+        }
+        
+        console.log('✅ Puntuaciones cargadas para receta:', recipe.id);
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar puntuaciones:', error);
+    }
+  }, [recipe.id, user?.id]);
 
   // Cargar ingredientes y pasos al entrar en la pantalla
   useEffect(() => {
+    let isMounted = true;
+    
     const loadRecipeDetails = async () => {
-      setLoading(true);
+      // Si ya tenemos datos completos, solo cargar valoraciones en background
+      if (initialDataState.isDataComplete && isMounted) {
+        console.log('🚀 Carga ultra-rápida: datos ya completos');
+        
+        // Cargar puntuaciones con comentarios
+        await loadRatingsWithComments();
+        
+        // Cargar valoraciones en background sin afectar UI
+        ratingCache.loadAndUpdateRating(recipe.id).catch(error => {
+          console.error('❌ Error al cargar valoraciones:', error);
+        });
+        return;
+      }
+
+      // Solo cargar si faltan datos críticos
+      if (isMounted) {
+        setLoading(true);
+      }
+      
       try {
-        console.log('🔍 Cargando detalles de receta:', recipe.id);
+        console.log('🔍 Carga rápida: completando datos faltantes');
         
-        // Cargar detalles completos de la receta
-        const completeRecipe = await getRecipeDetails(recipe.id);
+        // Cargar datos de receta y puntuaciones en paralelo
+        const [completeRecipe] = await Promise.all([
+          getRecipeDetails(recipe.id),
+          loadRatingsWithComments()
+        ]);
         
-        if (completeRecipe) {
+        if (completeRecipe && isMounted) {
           setRecipeWithDetails(completeRecipe);
-          console.log('✅ Detalles cargados:', {
-            ingredients: completeRecipe.ingredients?.length || 0,
-            steps: completeRecipe.steps?.length || 0
-          });
-        } else {
-          console.log('⚠️ No se pudieron cargar los detalles, usando receta base');
+          console.log('✅ Datos actualizados');
+        } else if (isMounted) {
+          setRecipeWithDetails(recipe);
+          console.log('⚠️ Usando datos originales');
         }
         
-        // Cargar información de valoración específica y actualizar el cache
-        await ratingCache.loadAndUpdateRating(recipe.id);
+        if (isMounted) {
+          setDetailsLoaded(true);
+        }
+        
+        // Cargar valoraciones después sin bloquear
+        ratingCache.loadAndUpdateRating(recipe.id).catch(error => {
+          console.error('❌ Error al cargar valoraciones:', error);
+        });
         
       } catch (error) {
         console.error('❌ Error al cargar detalles:', error);
+        if (isMounted) {
+          setRecipeWithDetails(recipe);
+          setDetailsLoaded(true);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadRecipeDetails();
-  }, [recipe.id, getRecipeDetails]); // Quitar ratingCache de las dependencias
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [recipe.id, initialDataState.isDataComplete]); // Remover loadRatingsWithComments de dependencias
 
-  const adjustQuantity = (qty: number) => Math.round(qty * portions);
+  const adjustQuantity = useCallback((qty: number) => Math.round(qty * portions), [portions]);
 
-  // Obtener datos de valoración del cache
-  const ratingData = ratingCache.getRating(recipe.id);
+  // Verificar si es una receta propia
+  const isOwnRecipe = useMemo(() => {
+    return user?.id && recipeWithDetails.userId && Number(user.id) === Number(recipeWithDetails.userId);
+  }, [user?.id, recipeWithDetails.userId]);
+
+  // Optimización: Memorizar datos de valoración
+  const ratingData = useMemo(() => {
+    if (ratingsWithComments) {
+      return {
+        promedio: ratingsWithComments.promedio,
+        votos: ratingsWithComments.cantidadVotos
+      };
+    }
+    return ratingCache.getRating(recipe.id);
+  }, [ratingsWithComments, ratingCache, recipe.id]);
+  
   const averageRating = ratingData?.promedio || 0;
   const voteCount = ratingData?.votos || 0;
   const isRatingLoaded = ratingData !== undefined;
 
-  // Callback para actualizar la valoración cuando el usuario vota
-  const handleRatingUpdate = (newRating: number, newVoteCount: number) => {
+  // Optimización: Memorizar callback de actualización
+  const handleRatingUpdate = useCallback((newRating: number, newVoteCount: number) => {
     console.log('🔄 Actualizando valoración:', newRating, 'votos:', newVoteCount);
     ratingCache.updateRating(recipe.id, { promedio: newRating, votos: newVoteCount });
-  };
+    
+    // Recargar datos de puntuación después de actualizar
+    loadRatingsWithComments();
+  }, [ratingCache, recipe.id, loadRatingsWithComments]);
+
+  // Optimización: Memorizar handlers de porciones
+  const decreasePortions = useCallback(() => {
+    setPortions(prev => Math.max(1, prev - 1));
+  }, []);
+
+  const increasePortions = useCallback(() => {
+    setPortions(prev => prev + 1);
+  }, []);
+
+  // Optimización: Memorizar ingredientes renderizados
+  const ingredientsList = useMemo(() => {
+    if (!recipeWithDetails.ingredients?.length) {
+      return <Text style={styles.ingredientText}>No hay ingredientes disponibles</Text>;
+    }
+    
+    return recipeWithDetails.ingredients.map((ing, index) => (
+      <Text
+        key={`ingredient-${ing.id || index}`}
+        style={styles.ingredientText}
+      >
+        • {ing.name} ({adjustQuantity(Number(ing.quantity))} {ing.unit || 'g'})
+      </Text>
+    ));
+  }, [recipeWithDetails.ingredients, adjustQuantity]);
+
+  // Optimización: Memorizar pasos renderizados
+  const stepsList = useMemo(() => {
+    if (!recipeWithDetails.steps?.length) {
+      return <Text style={styles.stepText}>No hay pasos disponibles</Text>;
+    }
+    
+    return recipeWithDetails.steps.map((step, index) => (
+      <View key={`step-${step.order || index}`} style={styles.stepCard}>
+        {step.image && (
+          <Image
+            source={step.image}
+            style={styles.stepImg}
+            resizeMode="cover"
+            onError={() => console.log(`Error cargando imagen paso ${index + 1}`)}
+          />
+        )}
+        <Text style={styles.stepText}>
+          {index + 1}. {step.text || step.description}
+        </Text>
+      </View>
+    ));
+  }, [recipeWithDetails.steps]);
+
+  // Optimización: Pre-cargar imagen principal
+  const mainImageSource = useMemo(() => recipeWithDetails.image, [recipeWithDetails.image]);
+
+  // Optimización: Memorizar callbacks de navegación
+  const handleBackPress = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
+  const handleFavoritePress = useCallback(() => {
+    toggleFavorite(recipeWithDetails);
+  }, [toggleFavorite, recipeWithDetails]);
+
+  const handleGoToMyRecipes = useCallback(() => {
+    navigation.navigate('HomeTabs', { screen: 'Mis Recetas'});
+  }, [navigation]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={recipeWithDetails.image} style={styles.image} />
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      <Image 
+        source={mainImageSource} 
+        style={styles.image}
+        resizeMode="cover"
+        onError={() => console.log('Error cargando imagen principal')}
+      />
+      <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(recipeWithDetails)}>
+      <TouchableOpacity style={styles.favoriteButton} onPress={handleFavoritePress}>
         <Ionicons
           name={isFavorite(recipeWithDetails.id) ? 'heart' : 'heart-outline'}
           size={26}
@@ -102,57 +284,34 @@ const RecipeDetailsScreen = () => {
           <Text style={styles.ratingText}>Cargando valoración...</Text>
         )}
       </View>
-      <Text style={styles.description}>{recipeWithDetails.description}</Text>
+      
+      <Text style={styles.description}>
+        {recipeWithDetails.description || 'No hay descripción disponible'}
+      </Text>
 
       <Text style={styles.section}>Ingredientes</Text>
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#23294c" />
-          <Text style={styles.loadingText}>Cargando ingredientes...</Text>
-        </View>
+      {!detailsLoaded ? (
+        <LoadingSpinner text="Cargando ingredientes..." />
       ) : (
         <>
           <View style={styles.portionsRow}>
-            <TouchableOpacity onPress={() => setPortions(Math.max(1, portions - 1))}>
+            <TouchableOpacity onPress={decreasePortions}>
               <Ionicons name="remove-circle-outline" size={22} />
             </TouchableOpacity>
             <Text style={{ marginHorizontal: 10 }}>{portions} porciones</Text>
-            <TouchableOpacity onPress={() => setPortions(portions + 1)}>
+            <TouchableOpacity onPress={increasePortions}>
               <Ionicons name="add-circle-outline" size={22} />
             </TouchableOpacity>
           </View>
-          {recipeWithDetails.ingredients?.map((ing, index) => 
-            React.createElement(Text, {
-              key: `ingredient-${ing.id || index}`,
-              style: styles.ingredientText
-            }, `• ${ing.name} (${adjustQuantity(Number(ing.quantity))} ${ing.unit || 'g'})`)
-          )}
+          {ingredientsList}
         </>
       )}
 
       <Text style={styles.section}>Pasos</Text>
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#23294c" />
-          <Text style={styles.loadingText}>Cargando pasos...</Text>
-        </View>
+      {!detailsLoaded ? (
+        <LoadingSpinner text="Cargando pasos..." />
       ) : (
-        recipeWithDetails.steps?.map((step, index) => 
-          React.createElement(View, {
-            key: `step-${step.order || index}`,
-            style: styles.stepCard
-          }, [
-            step.image ? React.createElement(Image, {
-              key: 'image',
-              source: step.image,
-              style: styles.stepImg
-            }) : null,
-            React.createElement(Text, {
-              key: 'text',
-              style: styles.stepText
-            }, `${index + 1}. ${step.text || step.description}`)
-          ].filter(Boolean))
-        )
+        stepsList
       )}
 
       {/* Valoración y Comentarios */}
@@ -162,6 +321,9 @@ const RecipeDetailsScreen = () => {
         currentRating={averageRating}
         onRatingUpdate={handleRatingUpdate}
         idAutor={recipeWithDetails.userId ?? -1}
+        ratingsWithComments={ratingsWithComments}
+        userRating={userRating}
+        isOwnRecipe={!!isOwnRecipe}
       />
 
       {/* Botón solo si vienes de editar */}
@@ -174,7 +336,7 @@ const RecipeDetailsScreen = () => {
           alignItems: 'center',
           marginVertical: 16,
         }}
-        onPress={() => navigation.navigate('HomeTabs', { screen: 'Mis Recetas'})}
+        onPress={handleGoToMyRecipes}
       >
         <Text style={{ color: 'white', fontWeight: 'bold' }}>Volver a Mis Recetas</Text>
       </TouchableOpacity>
@@ -259,16 +421,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 6,
   },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  loadingText: {
-    marginLeft: 8,
-    color: '#666',
-  },
   ingredientText: {
     fontSize: 14,
     color: '#333',
@@ -279,6 +431,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
+  },
+  userRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    backgroundColor: '#f0f8ff',
+    padding: 8,
+    borderRadius: 6,
+  },
+  userRatingLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginRight: 8,
+    fontWeight: '500',
+  },
+  userRatingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  ownRecipeContainer: {
+    backgroundColor: '#fff3cd',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#ffeaa7',
+  },
+  ownRecipeText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

@@ -15,6 +15,7 @@ type UserContextType = {
   user: User;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  loading: boolean;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -31,8 +32,10 @@ export const useUserContext = () => {
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    setLoading(true);
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -71,6 +74,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       console.error('Error al hacer login:', err);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,7 +84,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ user, login, logout }}>
+    <UserContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </UserContext.Provider>
   );

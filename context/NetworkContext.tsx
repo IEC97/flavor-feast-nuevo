@@ -28,12 +28,7 @@ export const NetworkProvider = ({ children }: { children: React.ReactNode }) => 
       setIsConnected(connected || false);
       setIsOffline(!connected);
       
-      console.log('🌐 Estado de conexión:', {
-        isConnected: netInfoState.isConnected,
-        isInternetReachable: netInfoState.isInternetReachable,
-        type: netInfoState.type,
-        finalConnected: connected
-      });
+      console.log('🌐 Conexión verificada:', connected ? 'Conectado' : 'Desconectado');
     } catch (error) {
       console.error('❌ Error al verificar conexión:', error);
       setIsConnected(false);

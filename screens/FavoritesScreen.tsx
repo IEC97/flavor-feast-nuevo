@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
 import StarRating from '../components/StarRating';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext';
 
 const FavoritesScreen = () => {
@@ -120,6 +121,9 @@ const FavoritesScreen = () => {
             />
           }
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            refreshing ? <LoadingSpinner text="Cargando favoritos..." /> : null
+          }
         />
       )}
     </SafeAreaView>
