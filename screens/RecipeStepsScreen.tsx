@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRecipeContext } from '../context/RecipeContext';
 import { Recipe, Step, RootStackParamList } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import StepImagePicker from '../components/StepImagePicker';
 
 const RecipeStepsScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -201,21 +202,11 @@ const RecipeStepsScreen = () => {
             multiline
           />
           
-          <TextInput
-            placeholder="URL de imagen (opcional)"
-            placeholderTextColor="#000"
-            value={step.imageUrl || ''}
-            onChangeText={(url: string) => handleChange(index, 'imageUrl', url)}
-            style={styles.imageInput}
+          <StepImagePicker
+            imageUrl={step.imageUrl || ''}
+            onImageUrlChange={(url: string) => handleChange(index, 'imageUrl', url)}
+            placeholder="URL de imagen del paso (opcional)"
           />
-          
-          {step.imageUrl && step.imageUrl.trim() !== '' && (
-            <Image 
-              source={{ uri: step.imageUrl }} 
-              style={styles.img}
-              onError={() => {/* Error loading image */}}
-            />
-          )}
         </View>
       ))}
 
