@@ -20,6 +20,7 @@ import { Recipe, RootStackParamList, AvailableIngredient } from '../types';
 import { useUserContext } from '../context/UserContext';
 import { Picker } from '@react-native-picker/picker';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ImagePickerComponent from '../components/ImagePickerComponent';
 import { API_BASE_URL } from '../constants';
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
@@ -257,7 +258,7 @@ const RecipeFormScreen = () => {
   }
 
   const pickImage = async () => {
-    // Esta función ya no se necesita
+    // Esta función ahora se maneja en ImagePickerComponent
   };
 
   const handleImageUrlChange = (url: string) => {
@@ -278,8 +279,7 @@ const RecipeFormScreen = () => {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      //mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      mediaTypes: [ImagePicker.MediaType.Image],
+      mediaTypes: 'images',
       allowsEditing: true,
       quality: 0.7,
     });
@@ -389,25 +389,13 @@ const RecipeFormScreen = () => {
 
       <ScrollView contentContainerStyle={styles.container}>
       
-      {/* Sección de imagen simplificada - Solo URL */}
-      <Text style={styles.label}>Imagen de la receta *</Text>
-      
-      {/* Vista previa de la imagen */}
-      <Image source={getImageSource()} style={styles.imagePreview} />
-
-      {/* Campo para URL de imagen */}
-      <TextInput
-        style={styles.imageUrlInput}
-        placeholder="URL de imagen OBLIGATORIA (ej: https://ejemplo.com/imagen.jpg)"
-        placeholderTextColor="#000"
-        value={imageUrl}
-        onChangeText={handleImageUrlChange}
-        keyboardType="url"
-        autoCapitalize="none"
+      {/* Componente mejorado para imagen */}
+      <ImagePickerComponent
+        imageUrl={imageUrl}
+        onImageUrlChange={handleImageUrlChange}
+        placeholder="URL de imagen o selecciona de la galería"
+        required={true}
       />
-      <Text style={styles.helperText}>
-        Campo obligatorio. Asegúrate de que la URL termine en .jpg, .png, .gif o .webp
-      </Text>
 
       <Text style={styles.label}>Título *</Text>
       <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholderTextColor="#000" />
@@ -656,13 +644,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
-  },
-  helperText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    marginBottom: 10,
-    fontStyle: 'italic',
   },
   submitButton: {
     marginTop: 15,
