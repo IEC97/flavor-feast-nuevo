@@ -187,12 +187,22 @@ const RecipeDetailsScreen = () => {
     return (
       <View style={styles.ingredientsContainer}>
         {recipeWithDetails.ingredients.map((ing, index) => (
-          <Text
+          <View
             key={`ingredient-${ing.id || index}`}
-            style={styles.ingredientText}
+            style={styles.ingredientCard}
           >
-            • {ing.name} ({adjustQuantity(Number(ing.quantity))} {ing.unit || 'g'})
-          </Text>
+            <Text style={styles.ingredientName}>
+              {ing.name}
+            </Text>
+            <View style={styles.quantityContainer}>
+              <Text style={styles.ingredientQuantity}>
+                {adjustQuantity(Number(ing.quantity))}
+              </Text>
+              <Text style={styles.ingredientUnit}>
+                {ing.unit || 'g'}
+              </Text>
+            </View>
+          </View>
         ))}
       </View>
     );
@@ -489,6 +499,42 @@ const styles = StyleSheet.create({
   // Estilos para ingredientes mejorados
   ingredientsContainer: {
     paddingHorizontal: 20,
+  },
+  ingredientCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    marginHorizontal: 0,
+  },
+  ingredientName: {
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '500',
+    flex: 1,
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    minWidth: 80,
+    justifyContent: 'flex-end',
+  },
+  ingredientQuantity: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  ingredientUnit: {
+    fontSize: 14,
+    color: '#95a5a6',
+    fontWeight: '500',
+    marginLeft: 4,
+    textAlign: 'left',
   },
   ingredientText: {
     fontSize: 16,
