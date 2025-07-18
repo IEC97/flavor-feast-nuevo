@@ -175,41 +175,65 @@ const RecipeDetailsScreen = () => {
   const ingredientsList = useMemo(() => {
     if (!recipeWithDetails.ingredients?.length) {
       console.log('⚠️ No hay ingredientes disponibles para receta:', recipe.id);
-      return <Text style={styles.ingredientText}>No hay ingredientes disponibles</Text>;
+      return (
+        <View style={styles.emptyStateContainer}>
+          <Ionicons name="nutrition-outline" size={48} color="#ccc" />
+          <Text style={styles.emptyStateText}>No hay ingredientes disponibles</Text>
+        </View>
+      );
     }
     
     console.log('✅ Renderizando ingredientes:', recipeWithDetails.ingredients.length);
-    return recipeWithDetails.ingredients.map((ing, index) => (
-      <Text
-        key={`ingredient-${ing.id || index}`}
-        style={styles.ingredientText}
-      >
-        • {ing.name} ({adjustQuantity(Number(ing.quantity))} {ing.unit || 'g'})
-      </Text>
-    ));
+    return (
+      <View style={styles.ingredientsContainer}>
+        {recipeWithDetails.ingredients.map((ing, index) => (
+          <Text
+            key={`ingredient-${ing.id || index}`}
+            style={styles.ingredientText}
+          >
+            • {ing.name} ({adjustQuantity(Number(ing.quantity))} {ing.unit || 'g'})
+          </Text>
+        ))}
+      </View>
+    );
   }, [recipeWithDetails.ingredients, adjustQuantity]);
 
   // Optimización: Memorizar pasos renderizados
   const stepsList = useMemo(() => {
     if (!recipeWithDetails.steps?.length) {
       console.log('⚠️ No hay pasos disponibles para receta:', recipe.id);
-      return <Text style={styles.stepText}>No hay pasos disponibles</Text>;
+      return (
+        <View style={styles.emptyStateContainer}>
+          <Ionicons name="document-outline" size={48} color="#ccc" />
+          <Text style={styles.emptyStateText}>No hay pasos disponibles</Text>
+        </View>
+      );
     }
     
     console.log('✅ Renderizando pasos:', recipeWithDetails.steps.length);
     return recipeWithDetails.steps.map((step, index) => (
       <View key={`step-${step.order || index}`} style={styles.stepCard}>
-        {step.image && (
-          <Image
-            source={step.image}
-            style={styles.stepImg}
-            resizeMode="cover"
-            onError={() => console.log(`Error cargando imagen paso ${index + 1}`)}
-          />
-        )}
-        <Text style={styles.stepText}>
-          {index + 1}. {step.text || step.description}
+        <View style={styles.stepHeader}>
+          <View style={styles.stepNumber}>
+            <Text style={styles.stepNumberText}>{index + 1}</Text>
+          </View>
+          <Text style={styles.stepTitle}>Paso {index + 1}</Text>
+        </View>
+        
+        <Text style={styles.stepDescription}>
+          {step.text || step.description}
         </Text>
+        
+        {step.image && (
+          <View style={styles.stepImageContainer}>
+            <Image
+              source={step.image}
+              style={styles.stepImg}
+              resizeMode="cover"
+              onError={() => console.log(`Error cargando imagen paso ${index + 1}`)}
+            />
+          </View>
+        )}
       </View>
     ));
   }, [recipeWithDetails.steps]);
@@ -231,16 +255,18 @@ const RecipeDetailsScreen = () => {
   }, [navigation]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <Image 
         source={mainImageSource} 
         style={styles.image}
         resizeMode="cover"
         onError={() => console.log('Error cargando imagen principal')}
       />
+      
       <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
+      
       <TouchableOpacity style={styles.favoriteButton} onPress={handleFavoritePress}>
         <Ionicons
           name={isFavorite(recipeWithDetails.id) ? 'heart' : 'heart-outline'}
@@ -249,41 +275,52 @@ const RecipeDetailsScreen = () => {
         />
       </TouchableOpacity>
 
-      <Text style={styles.title}>{recipeWithDetails.title}</Text>
-      <Text style={styles.meta}>Por: {recipeWithDetails.author}</Text>
-      <View style={styles.ratingContainer}>
-        {isRatingLoaded ? (
-          voteCount > 0 ? (
-            <>
-              <StarRating rating={averageRating} size={20} />
-              <Text style={styles.ratingText}>
-                ({averageRating.toFixed(1)} - {voteCount} {voteCount === 1 ? 'voto' : 'votos'})
-              </Text>
-            </>
+      <View style={styles.mainContent}>
+        <Text style={styles.title}>{recipeWithDetails.title}</Text>
+        <Text style={styles.meta}>Por: {recipeWithDetails.author}</Text>
+        
+        <View style={styles.ratingContainer}>
+          {isRatingLoaded ? (
+            voteCount > 0 ? (
+              <>
+                <StarRating rating={averageRating} size={20} />
+                <Text style={styles.ratingText}>
+                  ({averageRating.toFixed(1)} - {voteCount} {voteCount === 1 ? 'voto' : 'votos'})
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.ratingText}>Sin valoraciones aún</Text>
+            )
           ) : (
-            <Text style={styles.ratingText}>Sin valoraciones aún</Text>
-          )
-        ) : (
-          <Text style={styles.ratingText}>Cargando valoración...</Text>
-        )}
+            <Text style={styles.ratingText}>Cargando valoración...</Text>
+          )}
+        </View>
+        
+        <Text style={styles.description}>
+          {recipeWithDetails.description || 'No hay descripción disponible'}
+        </Text>
       </View>
-      
-      <Text style={styles.description}>
-        {recipeWithDetails.description || 'No hay descripción disponible'}
-      </Text>
 
       <Text style={styles.section}>Ingredientes</Text>
       {!detailsLoaded ? (
-        <LoadingSpinner text="Cargando ingredientes..." />
+        <View style={{ paddingHorizontal: 20 }}>
+          <LoadingSpinner text="Cargando ingredientes..." />
+        </View>
       ) : (
         <>
           <View style={styles.portionsRow}>
-            <TouchableOpacity onPress={decreasePortions}>
-              <Ionicons name="remove-circle-outline" size={22} />
+            <TouchableOpacity 
+              style={styles.portionsButton} 
+              onPress={decreasePortions}
+            >
+              <Ionicons name="remove" size={20} color="#fff" />
             </TouchableOpacity>
-            <Text style={{ marginHorizontal: 10 }}>{portions} porciones</Text>
-            <TouchableOpacity onPress={increasePortions}>
-              <Ionicons name="add-circle-outline" size={22} />
+            <Text style={styles.portionsText}>{portions} porciones</Text>
+            <TouchableOpacity 
+              style={styles.portionsButton} 
+              onPress={increasePortions}
+            >
+              <Ionicons name="add" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
           {ingredientsList}
@@ -292,140 +329,272 @@ const RecipeDetailsScreen = () => {
 
       <Text style={styles.section}>Pasos</Text>
       {!detailsLoaded ? (
-        <LoadingSpinner text="Cargando pasos..." />
+        <View style={{ paddingHorizontal: 20 }}>
+          <LoadingSpinner text="Cargando pasos..." />
+        </View>
       ) : (
         stepsList
       )}
 
       {/* Valoración y Comentarios */}
       <Text style={styles.section}>Valoración y Comentarios</Text>
-      <RatingComments 
-        recipeId={recipe.id}
-        currentRating={averageRating}
-        onRatingUpdate={handleRatingUpdate}
-        idAutor={recipeWithDetails.userId ?? -1}
-        ratingsWithComments={ratingsWithComments}
-        userRating={userRating}
-        isOwnRecipe={!!isOwnRecipe}
-      />
+      <View style={{ paddingHorizontal: 20 }}>
+        <RatingComments 
+          recipeId={recipe.id}
+          currentRating={averageRating}
+          onRatingUpdate={handleRatingUpdate}
+          idAutor={recipeWithDetails.userId ?? -1}
+          ratingsWithComments={ratingsWithComments}
+          userRating={userRating}
+          isOwnRecipe={!!isOwnRecipe}
+        />
+      </View>
 
       {/* Botón solo si vienes de editar */}
-    {fromEdit && (
-      <TouchableOpacity
-        style={{
-          backgroundColor: '#23294c',
-          padding: 12,
-          borderRadius: 8,
-          alignItems: 'center',
-          marginVertical: 16,
-        }}
-        onPress={handleGoToMyRecipes}
-      >
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>Volver a Mis Recetas</Text>
-      </TouchableOpacity>
-    )}
-
+      {fromEdit && (
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#3498db',
+            padding: 16,
+            borderRadius: 12,
+            alignItems: 'center',
+            marginVertical: 20,
+            marginHorizontal: 20,
+            shadowColor: '#000',
+            shadowOffset: {
+              width: 0,
+              height: 2,
+            },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+          onPress={handleGoToMyRecipes}
+        >
+          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+            Volver a Mis Recetas
+          </Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { 
+    padding: 0, // Cambiar padding del contenedor
+    paddingBottom: 20,
+  },
   image: {
     width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 16,
+    height: 240, // Aumentar altura de imagen principal
+    marginBottom: 0, // Sin margin porque agregamos contenido encima
   },
   backButton: {
     position: 'absolute',
-    top: 20,
+    top: 40, // Ajustar posición
     left: 20,
-    backgroundColor: '#00000066',
-    borderRadius: 20,
-    padding: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)', // Mejor contraste
+    borderRadius: 25,
+    padding: 8,
+    zIndex: 10,
   },
   favoriteButton: {
     position: 'absolute',
-    top: 20,
+    top: 40, // Ajustar posición
     right: 20,
-    backgroundColor: '#00000066',
-    borderRadius: 20,
-    padding: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)', // Mejor contraste
+    borderRadius: 25,
+    padding: 8,
+    zIndex: 10,
+  },
+  // Nuevo contenedor para info principal
+  mainContent: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    marginTop: -25, // Overlap con la imagen
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28, // Título más grande
     fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 8,
+    lineHeight: 34,
   },
   meta: {
-    color: '#555',
-    marginBottom: 8,
+    color: '#7f8c8d',
+    marginBottom: 12,
+    fontSize: 16,
+    fontWeight: '500',
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
   },
   ratingText: {
     marginLeft: 8,
     fontSize: 14,
     color: '#666',
-  },
-  rating: {
-    fontSize: 16,
-    color: '#f9a825',
-    marginBottom: 8,
+    fontWeight: '500',
   },
   description: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 16,
+    fontSize: 16,
+    color: '#34495e',
+    marginBottom: 20,
+    lineHeight: 24,
+    fontWeight: '400',
   },
   section: {
     fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 8,
-    fontSize: 18,
+    marginTop: 30,
+    marginBottom: 16,
+    fontSize: 22,
+    color: '#2c3e50',
+    paddingHorizontal: 20,
   },
+  // Mejorar contenedor de porciones
   portionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    marginBottom: 20,
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 12,
+    marginHorizontal: 20,
   },
+  portionsText: {
+    marginHorizontal: 15,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  portionsButton: {
+    backgroundColor: '#34495e',
+    borderRadius: 20,
+    padding: 8,
+  },
+  // Estilos para ingredientes mejorados
+  ingredientsContainer: {
+    paddingHorizontal: 20,
+  },
+  ingredientText: {
+    fontSize: 16,
+    color: '#2c3e50',
+    marginBottom: 8,
+    paddingLeft: 20,
+    paddingVertical: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginHorizontal: 20,
+    lineHeight: 22,
+  },
+  // Nuevos estilos para pasos mejorados
   stepCard: {
-    marginBottom: 12,
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 10,
+    marginBottom: 20,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  stepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#34495e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  stepTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  stepDescription: {
+    fontSize: 16,
+    color: '#34495e',
+    lineHeight: 24,
+    padding: 16,
+    paddingTop: 16,
+  },
+  stepImageContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   stepImg: {
     width: '100%',
-    height: 150,
-    borderRadius: 10,
-    marginBottom: 6,
+    height: 180,
+    borderRadius: 12,
   },
-  ingredientText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
-    paddingLeft: 8,
+  // Estados vacíos mejorados
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    marginHorizontal: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  // Resto de estilos existentes pero mejorados
+  rating: {
+    fontSize: 16,
+    color: '#f39c12',
+    marginBottom: 8,
   },
   stepText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
+    fontSize: 16,
+    color: '#2c3e50',
+    lineHeight: 24,
   },
   userRatingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    backgroundColor: '#f0f8ff',
-    padding: 8,
-    borderRadius: 6,
+    marginBottom: 12,
+    backgroundColor: '#e8f4f8',
+    padding: 12,
+    borderRadius: 10,
   },
   userRatingLabel: {
     fontSize: 14,
-    color: '#333',
+    color: '#2c3e50',
     marginRight: 8,
     fontWeight: '500',
   },
@@ -436,9 +605,9 @@ const styles = StyleSheet.create({
   },
   ownRecipeContainer: {
     backgroundColor: '#fff3cd',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 8,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#ffeaa7',
   },
