@@ -31,25 +31,6 @@ const RecipeDetailsScreen = () => {
   const [userRating, setUserRating] = useState<number>(0);
   const [ratingsWithComments, setRatingsWithComments] = useState<any>(null);
 
-  // Optimización: Calcular estado inicial de datos
-  const initialDataState = useMemo(() => {
-    const hasIngredients = recipe.ingredients && recipe.ingredients.length > 0;
-    const hasSteps = recipe.steps && recipe.steps.length > 0;
-    return {
-      hasIngredients,
-      hasSteps,
-      isDataComplete: hasIngredients && hasSteps
-    };
-  }, [recipe.ingredients, recipe.steps]);
-
-  // Optimización: Marcar como cargado inmediatamente si ya tenemos datos
-  useEffect(() => {
-    if (initialDataState.isDataComplete) {
-      setDetailsLoaded(true);
-      setRatingsLoaded(true); // Inicialmente true para mostrar contenido
-    }
-  }, [initialDataState.isDataComplete]);
-
   // Función para cargar datos de puntuación con comentarios
   const loadRatingsWithComments = useCallback(async () => {
     try {
@@ -87,40 +68,38 @@ const RecipeDetailsScreen = () => {
     let isMounted = true;
     
     const loadRecipeDetails = async () => {
-      // Si ya tenemos datos completos, solo cargar valoraciones en background
-      if (initialDataState.isDataComplete && isMounted) {
-        console.log('🚀 Carga ultra-rápida: datos ya completos');
-        
-        // Cargar puntuaciones con comentarios
-        await loadRatingsWithComments();
-        
-        // Cargar valoraciones en background sin afectar UI
-        ratingCache.loadAndUpdateRating(recipe.id).catch(error => {
-          console.error('❌ Error al cargar valoraciones:', error);
-        });
-        return;
-      }
-
-      // Solo cargar si faltan datos críticos
+      // Siempre mostrar loading inicial para evitar pantalla vacía
       if (isMounted) {
         setLoading(true);
       }
       
       try {
-        console.log('🔍 Carga rápida: completando datos faltantes');
+        console.log('� Cargando detalles completos de la receta:', recipe.id);
         
-        // Cargar datos de receta y puntuaciones en paralelo
+        // Siempre cargar datos completos de la API para garantizar que no estén vacíos
         const [completeRecipe] = await Promise.all([
           getRecipeDetails(recipe.id),
           loadRatingsWithComments()
         ]);
         
         if (completeRecipe && isMounted) {
-          setRecipeWithDetails(completeRecipe);
-          console.log('✅ Datos actualizados');
+          // Verificar que los datos estén completos
+          const hasIngredients = completeRecipe.ingredients && completeRecipe.ingredients.length > 0;
+          const hasSteps = completeRecipe.steps && completeRecipe.steps.length > 0;
+          
+          if (hasIngredients && hasSteps) {
+            setRecipeWithDetails(completeRecipe);
+            console.log('✅ Datos completos cargados:', { 
+              ingredientes: completeRecipe.ingredients?.length || 0,
+              pasos: completeRecipe.steps?.length || 0
+            });
+          } else {
+            console.log('⚠️ Datos incompletos, usando datos originales');
+            setRecipeWithDetails(recipe);
+          }
         } else if (isMounted) {
           setRecipeWithDetails(recipe);
-          console.log('⚠️ Usando datos originales');
+          console.log('⚠️ No se pudieron cargar datos completos, usando originales');
         }
         
         if (isMounted) {
@@ -150,7 +129,7 @@ const RecipeDetailsScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, [recipe.id, initialDataState.isDataComplete]); // Remover loadRatingsWithComments de dependencias
+  }, [recipe.id]); // Solo depender del ID de la receta
 
   const adjustQuantity = useCallback((qty: number) => Math.round(qty * portions), [portions]);
 
@@ -195,9 +174,11 @@ const RecipeDetailsScreen = () => {
   // Optimización: Memorizar ingredientes renderizados
   const ingredientsList = useMemo(() => {
     if (!recipeWithDetails.ingredients?.length) {
+      console.log('⚠️ No hay ingredientes disponibles para receta:', recipe.id);
       return <Text style={styles.ingredientText}>No hay ingredientes disponibles</Text>;
     }
     
+    console.log('✅ Renderizando ingredientes:', recipeWithDetails.ingredients.length);
     return recipeWithDetails.ingredients.map((ing, index) => (
       <Text
         key={`ingredient-${ing.id || index}`}
@@ -211,9 +192,11 @@ const RecipeDetailsScreen = () => {
   // Optimización: Memorizar pasos renderizados
   const stepsList = useMemo(() => {
     if (!recipeWithDetails.steps?.length) {
+      console.log('⚠️ No hay pasos disponibles para receta:', recipe.id);
       return <Text style={styles.stepText}>No hay pasos disponibles</Text>;
     }
     
+    console.log('✅ Renderizando pasos:', recipeWithDetails.steps.length);
     return recipeWithDetails.steps.map((step, index) => (
       <View key={`step-${step.order || index}`} style={styles.stepCard}>
         {step.image && (

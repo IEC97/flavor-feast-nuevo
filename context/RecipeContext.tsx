@@ -528,7 +528,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       // Verificar que la receta pertenece al usuario
       const recipeToDelete = recipes.find(r => r.id === id || r.id === id.toString());
       console.log('🔍 Receta encontrada:', recipeToDelete ? 'SÍ' : 'NO');
-      console.log('🔍 Lista de IDs en el estado:', recipes.map(r => ({ id: r.id, title: r.title, createdByUser: r.createdByUser })));
       
       if (!recipeToDelete) {
         console.error('❌ No se encontró la receta con ID:', id);
@@ -883,13 +882,6 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       const json = await response.json();
       
       if (json.status === 200 && Array.isArray(json.data)) {
-        console.log('🔍 getUserRecipes - Ejemplo de datos del backend:', json.data[0] ? {
-          idReceta: json.data[0].idReceta,
-          nombre: json.data[0].nombre,
-          tipoId: json.data[0].tipoId,
-          tipo: json.data[0].tipo
-        } : 'No hay datos');
-        
         const mappedRecipes = json.data.map((r: any): Recipe => ({
           id: r.idReceta.toString(),
           title: r.nombre,
@@ -917,9 +909,7 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
           userId: parseInt(userId, 10),
           description: r.descripcion,
         }));
-        
-        console.log('🔍 getUserRecipes encontró:', mappedRecipes.length, 'recetas del usuario');
-        
+                
         return mappedRecipes;
       }
       return [];

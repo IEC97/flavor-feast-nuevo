@@ -60,7 +60,6 @@ const AdminScreen = () => {
       
       // Si no tenemos recetas cargadas, cargarlas primero
       if (recipes.length === 0) {
-        console.log('🔄 Cargando recetas admin primero para optimizar comentarios...');
         await loadRecipesForComments();
       }
       
@@ -76,7 +75,6 @@ const AdminScreen = () => {
   const loadRecipesForComments = async (): Promise<void> => {
     try {
       const endpoint = `${API_BASE_URL}/admin/recipes`;
-      console.log('🔄 Cargando recetas desde:', endpoint);
       
       const response = await fetch(endpoint);
       const text = await response.text();
@@ -91,7 +89,6 @@ const AdminScreen = () => {
       
       if (data.status === 200) {
         setRecipes(data.data);
-        console.log('📋 Recetas de admin cargadas para optimización:', data.data.length);
       }
     } catch (error) {
       console.error('❌ Error al cargar recetas para comentarios:', error);
@@ -128,8 +125,6 @@ const AdminScreen = () => {
     const fetchedRecipeNames = new Map<number, string>();
 
     if (uniqueRecipeIds.length > 0) {
-      console.log(`🔄 Haciendo fetch para ${uniqueRecipeIds.length} recetas no encontradas en admin:`, uniqueRecipeIds);
-      
       const fetchPromises = uniqueRecipeIds.map(async (recipeId) => {
         try {
           const recipeResponse = await fetch(`${API_BASE_URL}/recipes/${recipeId}`);
@@ -167,13 +162,9 @@ const AdminScreen = () => {
     try {
       setLoading(true);
       const endpoint = `${API_BASE_URL}/admin/comentarios`;
-      console.log('🔄 Cargando comentarios desde:', endpoint);
       
       const response = await fetch(endpoint);
-      console.log('📡 Status de respuesta comentarios:', response.status);
-      
       const text = await response.text();
-      console.log('📤 Respuesta del servidor (loadComments):', text.substring(0, 200) + '...');
 
       let data;
       try {
@@ -189,7 +180,6 @@ const AdminScreen = () => {
         const commentsWithRecipeNames = await getRecipeNamesOptimized(data.data);
         
         setComments(commentsWithRecipeNames);
-        console.log('💬 Comentarios de admin cargados con optimización:', commentsWithRecipeNames.length);
       } else {
         console.error('❌ Error al cargar comentarios de admin:', data.message);
         Alert.alert('Error', 'No se pudieron cargar los comentarios');
@@ -206,13 +196,9 @@ const AdminScreen = () => {
     try {
       setLoading(true);
       const endpoint = `${API_BASE_URL}/admin/recipes`;
-      console.log('🔄 Cargando recetas desde:', endpoint);
       
       const response = await fetch(endpoint);
-      console.log('📡 Status de respuesta:', response.status);
-      
       const text = await response.text();
-      console.log('📤 Respuesta del servidor (loadRecipes):', text.substring(0, 200) + '...');
 
       let data;
       try {
@@ -225,7 +211,6 @@ const AdminScreen = () => {
       
       if (data.status === 200) {
         setRecipes(data.data);
-        console.log('📋 Recetas de admin cargadas:', data.data.length);
       } else {
         console.error('❌ Error al cargar recetas de admin:', data.message);
         Alert.alert('Error', 'No se pudieron cargar las recetas');
@@ -243,10 +228,7 @@ const AdminScreen = () => {
     const newStatus = !currentStatus;
 
     try {
-      console.log(`🔄 Cambiando estado de aprobación de receta ${recipeId} a:`, newStatus);
-      
       const endpoint = `${API_BASE_URL}/admin/recipes/${recipeId}/aprobacion`;
-      console.log('📡 Usando endpoint:', endpoint);
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -259,9 +241,7 @@ const AdminScreen = () => {
         }),
       });
 
-      console.log('📡 Status de respuesta:', response.status);
       const text = await response.text();
-      console.log('📤 Respuesta del servidor:', text.substring(0, 200) + '...');
 
       if (text.includes('<!DOCTYPE html>')) {
         console.error('❌ Servidor devolvió HTML - URL o método incorrecto');
@@ -292,7 +272,6 @@ const AdminScreen = () => {
         );
         
         const statusText = newStatus ? 'Aprobada' : 'Desaprobada';
-        console.log(`✅ Receta ${recipeId} ${statusText.toLowerCase()}`);
         Alert.alert('Éxito', `Receta ${statusText.toLowerCase()} correctamente`);
       } else {
         console.error('❌ Error al cambiar estado:', data.message);
@@ -309,10 +288,7 @@ const AdminScreen = () => {
     const newStatus = !currentStatus;
 
     try {
-      console.log(`🔄 Cambiando estado de aprobación de comentario ${commentId} a:`, newStatus);
-      
       const endpoint = `${API_BASE_URL}/admin/comentarios/${commentId}/aprobacion`;
-      console.log('📡 Usando endpoint:', endpoint);
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -324,9 +300,7 @@ const AdminScreen = () => {
         }),
       });
 
-      console.log('📡 Status de respuesta:', response.status);
       const text = await response.text();
-      console.log('📤 Respuesta del servidor:', text.substring(0, 200) + '...');
 
       if (text.includes('<!DOCTYPE html>')) {
         console.error('❌ Servidor devolvió HTML - URL o método incorrecto');
@@ -357,7 +331,6 @@ const AdminScreen = () => {
         );
         
         const statusText = newStatus ? 'Aprobado' : 'Desaprobado';
-        console.log(`✅ Comentario ${commentId} ${statusText.toLowerCase()}`);
         Alert.alert('Éxito', `Comentario ${statusText.toLowerCase()} correctamente`);
       } else {
         console.error('❌ Error al cambiar estado del comentario:', data.message);
