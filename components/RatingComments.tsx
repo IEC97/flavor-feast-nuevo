@@ -286,7 +286,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
     try {
       setLoading(true);
       
-      const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comentario`, {
+      const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
