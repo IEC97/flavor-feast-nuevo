@@ -76,30 +76,135 @@ const RecipeDetailsScreen = () => {
       try {
         console.log('� Cargando detalles completos de la receta:', recipe.id);
         
-        // Siempre cargar datos completos de la API para garantizar que no estén vacíos
-        const [completeRecipe] = await Promise.all([
-          getRecipeDetails(recipe.id),
-          loadRatingsWithComments()
-        ]);
+        // NUEVA ESTRATEGIA: Hacer múltiples intentos si los datos vienen vacíos
+        let completeRecipe = null;
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (!completeRecipe && attempts < maxAttempts && isMounted) {
+          attempts++;
+          console.log(`🔄 Intento ${attempts}/${maxAttempts} para cargar receta ${recipe.id}`);
+          
+          try {
+            // ESTRATEGIA COMBINADA: Intentar contexto primero, luego fetch directo
+            console.log(`🔧 Estrategia combinada para intento ${attempts}`);
+            
+            // Opción 1: Intentar con el contexto (método original)
+            let recipeDetails = null;
+            try {
+              recipeDetails = await getRecipeDetails(recipe.id);
+              console.log('📋 Contexto resultado:', recipeDetails ? 'Éxito' : 'Falló');
+            } catch (contextError) {
+              console.log('❌ Contexto falló:', contextError);
+            }
+            
+            // Opción 2: Si el contexto falla, hacer fetch directo
+            if (!recipeDetails || !recipeDetails.ingredients?.length || !recipeDetails.steps?.length) {
+              console.log('🔧 Contexto insuficiente, haciendo fetch directo...');
+              
+              try {
+                const [ingredientsRes, stepsRes, baseRes] = await Promise.all([
+                  fetch(`${API_BASE_URL}/recipes/${recipe.id}/getRecipeIngredients`),
+                  fetch(`${API_BASE_URL}/recipes/${recipe.id}/steps`),
+                  fetch(`${API_BASE_URL}/recipes`)
+                ]);
+                
+                const [ingredientsData, stepsData, baseData] = await Promise.all([
+                  ingredientsRes.json(),
+                  stepsRes.json(), 
+                  baseRes.json()
+                ]);
+                
+                // Buscar la receta base en la lista general
+                let baseRecipe = recipe;
+                if (baseData.status === 200 && baseData.data) {
+                  const foundRecipe = baseData.data.find((r: any) => 
+                    String(r.idReceta) === String(recipe.id)
+                  );
+                  if (foundRecipe) {
+                    baseRecipe = {
+                      ...recipe,
+                      title: foundRecipe.nombre,
+                      description: foundRecipe.descripcion,
+                      author: foundRecipe.usuario,
+                      image: { uri: foundRecipe.imagen }
+                    };
+                  }
+                }
+                
+                if (ingredientsData.status === 200 && stepsData.status === 200) {
+                  // MAPEAR PROPIEDADES DEL BACKEND AL FORMATO FRONTEND
+                  const mappedIngredients = (ingredientsData.data?.ingredientes || []).map((ing: any) => ({
+                    id: ing.id,
+                    name: ing.nombre,          // nombre -> name
+                    quantity: ing.cantidad,   // cantidad -> quantity
+                    unit: ing.unidad         // unidad -> unit
+                  }));
+                  
+                  const mappedSteps = (stepsData.data?.pasos || []).map((paso: any) => ({
+                    order: paso.numero,              // numero -> order
+                    text: paso.descripcion,          // descripcion -> text
+                    description: paso.descripcion,   // También como description por compatibilidad
+                    image: paso.multimedia ? { uri: paso.multimedia } : null
+                  }));
+                  
+                  recipeDetails = {
+                    ...baseRecipe,
+                    ingredients: mappedIngredients,
+                    steps: mappedSteps
+                  };
+                  
+                  console.log('✅ Fetch directo exitoso con mapeo:', {
+                    ingredientes: recipeDetails.ingredients.length,
+                    pasos: recipeDetails.steps.length,
+                    primerIngrediente: recipeDetails.ingredients[0],
+                    primerPaso: recipeDetails.steps[0]
+                  });
+                }
+              } catch (directError) {
+                console.error('❌ Fetch directo falló:', directError);
+              }
+            }
+            
+            // También cargar ratings en paralelo
+            await loadRatingsWithComments();
+            
+            if (recipeDetails && isMounted) {
+              const hasIngredients = recipeDetails.ingredients && recipeDetails.ingredients.length > 0;
+              const hasSteps = recipeDetails.steps && recipeDetails.steps.length > 0;
+              
+              if (hasIngredients && hasSteps) {
+                completeRecipe = recipeDetails;
+                console.log(`✅ Datos completos obtenidos en intento ${attempts}`);
+                break;
+              } else if (attempts === maxAttempts) {
+                // En el último intento, usar lo que tenemos
+                console.log('⚠️ Último intento - usando datos disponibles');
+                completeRecipe = recipeDetails || recipe;
+              } else {
+                console.log(`⚠️ Intento ${attempts} incompleto, reintentando...`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            }
+          } catch (attemptError) {
+            console.error(`❌ Error en intento ${attempts}:`, attemptError);
+            if (attempts === maxAttempts) {
+              completeRecipe = recipe;
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+        }
         
         if (completeRecipe && isMounted) {
-          // Verificar que los datos estén completos
-          const hasIngredients = completeRecipe.ingredients && completeRecipe.ingredients.length > 0;
-          const hasSteps = completeRecipe.steps && completeRecipe.steps.length > 0;
-          
-          if (hasIngredients && hasSteps) {
-            setRecipeWithDetails(completeRecipe);
-            console.log('✅ Datos completos cargados:', { 
-              ingredientes: completeRecipe.ingredients?.length || 0,
-              pasos: completeRecipe.steps?.length || 0
-            });
-          } else {
-            console.log('⚠️ Datos incompletos, usando datos originales');
-            setRecipeWithDetails(recipe);
-          }
+          setRecipeWithDetails(completeRecipe);
+          console.log('✅ Receta final establecida:', { 
+            ingredientes: completeRecipe.ingredients?.length || 0,
+            pasos: completeRecipe.steps?.length || 0
+          });
         } else if (isMounted) {
+          console.log('⚠️ Usando datos originales como último recurso');
           setRecipeWithDetails(recipe);
-          console.log('⚠️ No se pudieron cargar datos completos, usando originales');
         }
         
         if (isMounted) {
@@ -131,7 +236,11 @@ const RecipeDetailsScreen = () => {
     };
   }, [recipe.id]); // Solo depender del ID de la receta
 
-  const adjustQuantity = useCallback((qty: number) => Math.round(qty * portions), [portions]);
+  const adjustQuantity = useCallback((qty: number | string) => {
+    const numQty = typeof qty === 'string' ? parseFloat(qty) : qty;
+    const result = Math.round((numQty || 0) * portions * 100) / 100; // Redondear a 2 decimales
+    return result % 1 === 0 ? result.toString() : result.toFixed(1); // Mostrar enteros sin .0
+  }, [portions]);
 
   // Verificar si es una receta propia
   const isOwnRecipe = useMemo(() => {
@@ -173,6 +282,9 @@ const RecipeDetailsScreen = () => {
 
   // Optimización: Memorizar ingredientes renderizados
   const ingredientsList = useMemo(() => {
+    console.log('🔍 DEBUG ingredientsList - recipeWithDetails.ingredients:', recipeWithDetails.ingredients?.length);
+    console.log('🔍 DEBUG ingredientsList - Primer ingrediente:', recipeWithDetails.ingredients?.[0]);
+    
     if (!recipeWithDetails.ingredients?.length) {
       console.log('⚠️ No hay ingredientes disponibles para receta:', recipe.id);
       return (
@@ -196,17 +308,17 @@ const RecipeDetailsScreen = () => {
             </Text>
             <View style={styles.quantityContainer}>
               <Text style={styles.ingredientQuantity}>
-                {adjustQuantity(Number(ing.quantity))}
+                {adjustQuantity(ing.quantity)}
               </Text>
               <Text style={styles.ingredientUnit}>
-                {ing.unit || 'g'}
+                {ing.unit || 'unidad'}
               </Text>
             </View>
           </View>
         ))}
       </View>
     );
-  }, [recipeWithDetails.ingredients, adjustQuantity]);
+  }, [recipeWithDetails.ingredients, adjustQuantity, detailsLoaded]);
 
   // Optimización: Memorizar pasos renderizados
   const stepsList = useMemo(() => {
@@ -246,7 +358,7 @@ const RecipeDetailsScreen = () => {
         )}
       </View>
     ));
-  }, [recipeWithDetails.steps]);
+  }, [recipeWithDetails.steps, detailsLoaded]);
 
   // Optimización: Pre-cargar imagen principal
   const mainImageSource = useMemo(() => recipeWithDetails.image, [recipeWithDetails.image]);
