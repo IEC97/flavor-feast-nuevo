@@ -4,15 +4,18 @@ import { useUser } from '../context/UserContext';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types'; // 👈 importante
+import { CustomAlert } from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 const ProfileScreen = () => {
   const { user, logout } = useUser();
+  const { alertState, hideAlert, showAlert } = useCustomAlert();
 
   // ✅ TIPADO de navegación
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Cerrar sesión',
       '¿Estás seguro que querés cerrar sesión?',
       [
@@ -30,7 +33,8 @@ const ProfileScreen = () => {
             );
           },
         },
-      ]
+      ],
+      '👋'
     );
   };
 
@@ -102,6 +106,16 @@ const ProfileScreen = () => {
           <Text style={styles.adminText}>🔧 Acceder como Administrador</Text>
         </TouchableOpacity>
       </View>
+
+      {/* CustomAlert para alertas estilizadas */}
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        icon={alertState.icon}
+        onClose={hideAlert}
+      />
     </View>
   );
 };

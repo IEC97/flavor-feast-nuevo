@@ -1,5 +1,6 @@
 // ✅ context/RecipeContext.tsx - CORREGIDO
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Alert } from 'react-native';
 import { Recipe, AvailableIngredient } from '../types';
 import { API_BASE_URL } from '../constants'; 
 import { useUserContext } from './UserContext';
@@ -16,7 +17,7 @@ type RecipeContextType = {
   addRecipe: (recipe: Recipe) => Promise<void>;
   editRecipe: (id: string, updatedRecipe: Partial<Recipe>) => Promise<void>;
   deleteRecipe: (id: string) => Promise<boolean>;
-  toggleFavorite: (recipe: Recipe) => void;
+  toggleFavorite: (recipe: Recipe) => Promise<{ success: boolean; message?: string }>;
   isFavorite: (id: string) => boolean;
   refreshFavorites: () => Promise<void>;
   getRecipeIngredients: (recipeId: string) => Promise<any[]>;
@@ -624,10 +625,10 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   
-  const toggleFavorite = async (recipe: Recipe) => {
+  const toggleFavorite = async (recipe: Recipe): Promise<{ success: boolean; message?: string }> => {
     if (!user?.id) {
       console.error('⚠️ No hay usuario autenticado');
-      return;
+      return { success: false, message: 'No hay usuario autenticado' };
     }
 
     const exists = favorites.some((r) => r.id === recipe.id);
@@ -639,21 +640,28 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
         if (success) {
           setFavorites((prev) => prev.filter((r) => r.id !== recipe.id));
           console.log('✅ Favorito eliminado');
+          return { success: true };
+        } else {
+          return { success: false, message: 'Error al eliminar favorito' };
         }
       } else {
-        const success = await addFavoriteToBackend(user.id, recipe.id);
-        if (success) {
+        const result = await addFavoriteToBackend(user.id, recipe.id);
+        if (result.success) {
           setFavorites((prev) => [...prev, recipe]);
           console.log('✅ Favorito agregado');
+          return { success: true };
+        } else {
+          return { success: false, message: result.message };
         }
       }
     } catch (error) {
       console.error('❌ Error al actualizar favorito:', error);
+      return { success: false, message: 'Error inesperado' };
     }
   };
 
   
-  const addFavoriteToBackend = async (userId: string, recipeId: string): Promise<boolean> => {
+  const addFavoriteToBackend = async (userId: string, recipeId: string): Promise<{ success: boolean; message?: string }> => {
     const baseUrl = API_BASE_URL.replace('?path=/api', '');
     const url = `${baseUrl}?path=/api/users/${userId}/favorites/${recipeId}`;
     
@@ -666,14 +674,15 @@ export const RecipeProvider = ({ children }: { children: React.ReactNode }) => {
       const json = await response.json();
       
       if (response.ok && (json.status === 200 || json.status === 201)) {
-        return true;
+        return { success: true };
       } else {
-        console.error('❌ Error al agregar favorito:', json.message || 'Error del servidor');
-        return false;
+        const errorMessage = json.message || 'Error del servidor';
+        console.error('❌ Error al agregar favorito:', errorMessage);
+        return { success: false, message: errorMessage };
       }
     } catch (error) {
       console.error('❌ Error de conexión al agregar favorito:', error);
-      return false;
+      return { success: false, message: 'Error de conexión' };
     }
   };
 

@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,16 +16,21 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useRecipeContext } from '../context/RecipeContext';
+import { useUserContext } from '../context/UserContext';
 import StarRating from '../components/StarRating';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext';
+import { CustomAlert } from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 const FavoritesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RecipeDetails'>>();
   const { favorites, toggleFavorite, isFavorite, refreshFavorites } = useRecipeContext();
+  const { user } = useUserContext();
   const [refreshing, setRefreshing] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0); // Estado para forzar actualizaciones
   const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
+  const { alertState, showLoginAlert, showPreventiveLimitAlert, showFavoritesLimitAlert, hideAlert, showAlert } = useCustomAlert();
 
   // Función para cargar valoraciones de favoritos
   const loadFavoriteRatings = async () => {
@@ -48,6 +54,22 @@ const FavoritesScreen = () => {
     // Cache update
     setForceUpdate(prev => prev + 1);
   }, [ratingCache.updateCounter]);
+
+  // Función para manejar el botón de favoritos con validaciones
+  const handleFavoritePress = async (item: any) => {
+    // Verificar si el usuario está autenticado
+    if (!user?.id) {
+      showLoginAlert(() => navigation.navigate('Login'));
+      return;
+    }
+
+    // En FavoritesScreen siempre se está quitando de favoritos
+    const result = await toggleFavorite(item);
+    
+    if (!result.success && result.message) {
+      Alert.alert('Error', result.message);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -84,7 +106,7 @@ const FavoritesScreen = () => {
             {renderRatingSection()}
           </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
+        <TouchableOpacity onPress={() => handleFavoritePress(item)} style={styles.heartIcon}>
           <Ionicons
             name={isFavorite(item.id) ? 'heart' : 'heart-outline'}
             size={24}
@@ -126,6 +148,16 @@ const FavoritesScreen = () => {
           }
         />
       )}
+
+      {/* CustomAlert para alertas estilizadas */}
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        icon={alertState.icon}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 };

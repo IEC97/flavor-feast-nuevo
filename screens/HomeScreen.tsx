@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,17 +23,20 @@ import { API_BASE_URL } from '../constants';
 import StarRating from '../components/StarRating'; 
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext'; 
+import { CustomAlert } from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert'; 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'HomeTabs'>;
 
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { recipes, toggleFavorite, isFavorite } = useRecipeContext();
+  const { recipes, toggleFavorite, isFavorite, favorites } = useRecipeContext();
   const { filters } = useFilterContext();
   const { sortOrder } = useSortContext();
   const { user } = useUserContext();
   const ratingCache = useRatingCache();
+  const { alertState, showLoginAlert, showPreventiveLimitAlert, showFavoritesLimitAlert, hideAlert, showAlert } = useCustomAlert();
   // Estados optimizados
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
@@ -358,6 +362,35 @@ const HomeScreen = () => {
     return () => { cancelled = true; };
   }, [filters.include, filters.exclude, filters.categories, mapsLoaded, categoryIdMap, ingredientIdMap, sortOrder]);
 
+  // Función para manejar el botón de favoritos con validaciones
+  const handleFavoritePress = async (item: Recipe) => {
+    // Verificar si el usuario está autenticado
+    if (!user?.id) {
+      showLoginAlert(() => navigation.navigate('Login'));
+      return;
+    }
+
+    // Verificar límite de favoritos (máximo 10) - solo si no es favorito actualmente
+    const isCurrentlyFavorite = isFavorite(item.id);
+    if (!isCurrentlyFavorite && favorites.length >= 10) {
+      showPreventiveLimitAlert(() => navigation.navigate('HomeTabs', { screen: 'Favoritos' }));
+      return;
+    }
+
+    // Proceder con toggle y manejar el resultado
+    const result = await toggleFavorite(item);
+    
+    if (!result.success && result.message) {
+      // Verificar si es específicamente el error de límite de favoritos del backend
+      if (result.message.includes('máximo de 10 recetas favoritas') || result.message.includes('Ha alcanzado el máximo')) {
+        showFavoritesLimitAlert(() => navigation.navigate('HomeTabs', { screen: 'Favoritos' }));
+      } else {
+        // Otros errores - mantener Alert nativo para errores genéricos
+        Alert.alert('Error', result.message);
+      }
+    }
+  };
+
   // Aplicar ordenamiento optimizado
   const applySort = (list: Recipe[]) => {
     return [...list].sort((a, b) => {
@@ -414,7 +447,7 @@ const HomeScreen = () => {
           <Text style={styles.author}>Por: {item.author}</Text>
           {renderRatingSection()}
         </View>
-        <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.heartIcon}>
+        <TouchableOpacity onPress={() => handleFavoritePress(item)} style={styles.heartIcon}>
           <Ionicons
             name={isFavorite(item.id) ? 'heart' : 'heart-outline'}
             size={24}
@@ -508,6 +541,16 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* CustomAlert para alertas estilizadas */}
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        icon={alertState.icon}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 };

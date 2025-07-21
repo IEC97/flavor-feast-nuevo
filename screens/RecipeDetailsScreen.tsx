@@ -1,6 +1,6 @@
 // screens/RecipeDetailsScreen.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,15 +11,18 @@ import RatingComments from '../components/RatingComments';
 import StarRating from '../components/StarRating';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useRatingCache } from '../context/RatingCacheContext';
+import { CustomAlert } from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 import { API_BASE_URL } from '../constants';
 
 const RecipeDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { recipe } = route.params as { recipe: Recipe };
-  const { toggleFavorite, isFavorite, getRecipeDetails, getRecipeAverageRating } = useRecipeContext();
+  const { toggleFavorite, isFavorite, getRecipeDetails, getRecipeAverageRating, favorites } = useRecipeContext();
   const { user } = useUserContext();
   const ratingCache = useRatingCache(); // 👈 Usar el hook de cache de valoraciones
+  const { alertState, showLoginAlert, showPreventiveLimitAlert, showFavoritesLimitAlert, hideAlert, showAlert } = useCustomAlert();
 
   const { fromEdit } = route.params || {};
 
@@ -368,9 +371,33 @@ const RecipeDetailsScreen = () => {
     navigation.goBack();
   }, [navigation]);
 
-  const handleFavoritePress = useCallback(() => {
-    toggleFavorite(recipeWithDetails);
-  }, [toggleFavorite, recipeWithDetails]);
+  const handleFavoritePress = useCallback(async () => {
+    // Verificar si el usuario está autenticado
+    if (!user?.id) {
+      showLoginAlert(() => navigation.navigate('Login'));
+      return;
+    }
+
+    // Verificar límite de favoritos (máximo 10) - solo si no es favorito actualmente
+    const isCurrentlyFavorite = isFavorite(recipeWithDetails.id);
+    if (!isCurrentlyFavorite && favorites.length >= 10) {
+      showPreventiveLimitAlert(() => navigation.navigate('HomeTabs', { screen: 'Favoritos' }));
+      return;
+    }
+
+    // Proceder con toggle y manejar el resultado
+    const result = await toggleFavorite(recipeWithDetails);
+    
+    if (!result.success && result.message) {
+      // Verificar si es específicamente el error de límite de favoritos del backend
+      if (result.message.includes('máximo de 10 recetas favoritas') || result.message.includes('Ha alcanzado el máximo')) {
+        showFavoritesLimitAlert(() => navigation.navigate('HomeTabs', { screen: 'Favoritos' }));
+      } else {
+        // Otros errores - usar Alert nativo para estos
+        Alert.alert('Error', result.message);
+      }
+    }
+  }, [toggleFavorite, recipeWithDetails, user, isFavorite, favorites.length, navigation, showLoginAlert, showPreventiveLimitAlert, showFavoritesLimitAlert]);
 
   const handleGoToMyRecipes = useCallback(() => {
     navigation.navigate('HomeTabs', { screen: 'Mis Recetas'});
@@ -498,6 +525,16 @@ const RecipeDetailsScreen = () => {
           </Text>
         </TouchableOpacity>
       )}
+
+      {/* CustomAlert para alertas estilizadas */}
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        icon={alertState.icon}
+        onClose={hideAlert}
+      />
     </ScrollView>
   );
 };
