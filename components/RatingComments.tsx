@@ -14,6 +14,8 @@ import { useUserContext } from '../context/UserContext';
 import { Comment, Rating } from '../types';
 import StarRating from './StarRating';
 import LoadingSpinner from './LoadingSpinner';
+import { CustomAlert } from './CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 interface RatingCommentsProps {
   recipeId: string;
@@ -35,6 +37,7 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
   isOwnRecipe = false
 }) => {
   const { user } = useUserContext();
+  const { alertState, hideAlert, showAlert } = useCustomAlert();
   const [comments, setComments] = useState<Comment[]>([]);
   const [userRating, setUserRating] = useState<number>(initialUserRating);
   const [newComment, setNewComment] = useState<string>('');
@@ -248,7 +251,12 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
           }
         }
         
-        Alert.alert('Éxito', 'Valoración guardada exitosamente');
+        showAlert(
+          'Valoración guardada',
+          'Tu valoración ha sido guardada exitosamente',
+          [{ text: 'OK' }],
+          '⭐'
+        );
       } else {
         console.error('❌ Error al guardar valoración:', json.message);
         Alert.alert('Error', json.message || 'Error al guardar valoración');
@@ -316,7 +324,12 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
       if (json.status === 200 || json.status === 201) {
         setNewComment('');
         loadComments(); // Recargar comentarios
-        Alert.alert('Éxito', 'Comentario enviado exitosamente');
+        showAlert(
+          'Comentario enviado',
+          'Tu comentario ha sido enviado exitosamente y está pendiente de validación por el administrador.',
+          [{ text: 'Entendido' }],
+          '💬'
+        );
       } else {
         Alert.alert('Error', json.message || 'Error al enviar comentario');
       }
@@ -433,6 +446,16 @@ const RatingComments: React.FC<RatingCommentsProps> = ({
           Inicia sesión para valorar y comentar
         </Text>
       )}
+
+      {/* CustomAlert para alertas estilizadas */}
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        icon={alertState.icon}
+        onClose={hideAlert}
+      />
     </View>
   );
 };
